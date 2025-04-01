@@ -193,8 +193,8 @@ function isDigit(ch) {
 class Parser {
     constructor(tokens) {
         this.tokens = Array.isArray(tokens) ? tokens.filter(token => token.value.trim() !== '') : [];
-        this.symbolTable = {}; // Symbol Table to store variables and types
-        this.errors = []; // Store all errors here
+        this.symbolTable = {};
+        this.errors = [];
     }
 
     parse() {
@@ -266,10 +266,11 @@ class Parser {
         if (expectedType === 'float' && isFloat(value.value)) {
             return true;
         }
-        return false; // Return false if the type does not match
+        if (expectedType === 'String' && value.type === 'literal') {
+            return true;
+        }
+        return false;
     }
-
-    // Parse literals or variables
     parseLiteralOrExpression(token) {
         if (token.type === 'constant' || token.type === 'literal') {
             return {
