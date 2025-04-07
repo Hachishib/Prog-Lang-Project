@@ -116,7 +116,7 @@ function isKeyword(key) {
   const keywords = [
     "boolean", "break", "case", "char", "class", "default", "do", "else", "float",
     "for", "if", "import", "int", "new", "private", "public", "return", "static",
-    "switch", "void", "while", "String", "length", "continue"
+    "switch", "void", "while", "String", "length", "continue", "else if", "else"
   ];
   for (let keyword of keywords) {
     if (key === keyword) {
@@ -469,6 +469,6 @@ class Parser {
         ifNode.elseBranch = elseBranch;  // Properly set else branch
       }
     }
-
-  return ifNode;
-} // cha
+    return ifNode;
+  } // cha
+}
