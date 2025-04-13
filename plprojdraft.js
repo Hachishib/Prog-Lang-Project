@@ -96,7 +96,6 @@ rl.question("Enter a line of code: ", (x) => {
     );
 
     const filteredTokens = tokens.filter(
-      // here din nabago
       (token) =>
         token.value.trim() !== "" &&
         !(
@@ -130,38 +129,9 @@ function display(name, arr, mark) {
 
 function isKeyword(key) {
   const keywords = [
-<<<<<<< HEAD
-    "boolean",
-    "break",
-    "case",
-    "char",
-    "class",
-    "default",
-    "do",
-    "else",
-    "float",
-    "for",
-    "if",
-    "import",
-    "int",
-    "new",
-    "private",
-    "public",
-    "return",
-    "static",
-    "switch",
-    "void",
-    "while",
-    "String",
-    "length",
-    "continue",
-    "else if",
-    "else",
-=======
     "boolean", "break", "case", "char", "class", "default", "do", "else", "float",
     "for", "if", "import", "int", "new", "private", "public", "return", "static",
     "switch", "void", "while", "String", "length", "continue", "else if", "else"
->>>>>>> 1886b2c57c94f6ab33484f09b45bcff433d28738
   ];
   return keywords.includes(key);
 }
@@ -179,29 +149,7 @@ function isFloat(str) {
 }
 
 function isOperator(op) {
-  const operators = [
-    "+",
-    "-",
-    "*",
-    "/",
-    "%",
-    "=",
-    "<",
-    ">",
-    "!",
-    "++",
-    "--",
-    "+=",
-    "-=",
-    "*=",
-    "/=",
-    ">=",
-    "<=",
-    "==",
-    "!=",
-    "||",
-    "&&",
-  ];
+  const operators = ["+","-","*","/","%","=","<",">","!","++","--","+=","-=","*=","/=",">=","<=","==","!=","||","&&",];
   return operators.includes(op);
 }
 
@@ -407,25 +355,29 @@ class Parser {
       type: "IfStatement",
       condition,
       thenBranch,
-      elseIfBranches: [],
-      elseBranch: null,
-    };
+    }
 
+    let elseIfBranches = [];
     while (this.tokens[0]?.value === "else") {
       this.tokens.shift(); // Consume 'else'
 
       if (this.tokens[0]?.value === "if") {
         const elseIfNode = this.parseIfStatement();
         if (elseIfNode) {
-          ifNode.elseIfBranches.push(elseIfNode);
+          elseIfBranches.push(elseIfNode);
         }
       } else {
-        ifNode.elseBranch = this.parseBlock();
+        const elseBlock = this.parseBlock();
+        if (elseBlock) {
+          ifNode.elseBranch = elseBlock;
+        }
         break;
       }
     }
-<<<<<<< HEAD
 
+    if (elseIfBranches.length > 0) {
+      ifNode.elseIfBranches = elseIfBranches;
+    }
     return ifNode;
   }
 
@@ -433,7 +385,6 @@ class Parser {
     // YDi ko ma mahanap yung ConditionedParsed  so gumawa nalnag ako from logic sa kabila to here
     const left = this.tokens.shift();
     const operatorToken = this.tokens.shift();
-
     // Validate operator is a comparison operator
     const validOperators = ["==", "!=", "<", ">", "<=", ">="];
     if (!validOperators.includes(operatorToken.value)) {
@@ -452,24 +403,27 @@ class Parser {
   }
 
   parseBlock() {
-    // PAra to for Detecting kung merong bracket or  wala, pwede lagyan error handling
-    if (this.tokens[0]?.value !== "{") return null;
-    this.tokens.shift(); // Remove '{'
-
-    const statements = [];
-    while (this.tokens.length > 0 && this.tokens[0].value !== "}") {
-      const statement = this.parseStatement();
-      if (statement) statements.push(statement);
-    }
-
-    if (this.tokens.length === 0) {
-      this.errors.push("Unclosed block: Missing '}'");
+    if (this.tokens[0]?.value === "{") {
+      this.tokens.shift(); // Remove '{'
+      const statements = [];
+      while (this.tokens.length > 0 && this.tokens[0].value !== "}") {
+        const statement = this.parseStatement();
+        if (statement) statements.push(statement);
+      }
+  
+      if (this.tokens.length === 0) {
+        this.errors.push("Unclosed block: Missing '}'");
+      } else {
+        this.tokens.shift(); // Remove '}'
+      }
+  
+      return statements;
     } else {
-      this.tokens.shift(); // Remove '}'
+      // Treat next statement as a single blockless body
+      const statement = this.parseStatement();
+      return statement ? [statement] : null;
     }
-
-    return statements;
-  }
+  }  
 
   parseStatement() {
     // Bagong Fucntion to for handling to ,
@@ -490,10 +444,6 @@ class Parser {
         this.errors.push("Missing ';' after expression");
       }
       return expr;
-    }
+   }
   }
-=======
-    return ifNode;
-  } // cha
->>>>>>> 1886b2c57c94f6ab33484f09b45bcff433d28738
 }
