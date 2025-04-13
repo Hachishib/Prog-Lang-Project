@@ -374,11 +374,9 @@ class Parser {
         break;
       }
     }
-
     if (elseIfBranches.length > 0) {
       ifNode.elseIfBranches = elseIfBranches;
     }
-    return ifNode;
   }
 
   parseCondition() {
@@ -444,6 +442,6 @@ class Parser {
         this.errors.push("Missing ';' after expression");
       }
       return expr;
-   }
+    }
   }
 }
