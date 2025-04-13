@@ -130,38 +130,9 @@ function display(name, arr, mark) {
 
 function isKeyword(key) {
   const keywords = [
-<<<<<<< HEAD
-    "boolean",
-    "break",
-    "case",
-    "char",
-    "class",
-    "default",
-    "do",
-    "else",
-    "float",
-    "for",
-    "if",
-    "import",
-    "int",
-    "new",
-    "private",
-    "public",
-    "return",
-    "static",
-    "switch",
-    "void",
-    "while",
-    "String",
-    "length",
-    "continue",
-    "else if",
-    "else",
-=======
     "boolean", "break", "case", "char", "class", "default", "do", "else", "float",
     "for", "if", "import", "int", "new", "private", "public", "return", "static",
     "switch", "void", "while", "String", "length", "continue", "else if", "else"
->>>>>>> 1886b2c57c94f6ab33484f09b45bcff433d28738
   ];
   return keywords.includes(key);
 }
@@ -424,8 +395,6 @@ class Parser {
         break;
       }
     }
-<<<<<<< HEAD
-
     return ifNode;
   }
 
@@ -491,9 +460,6 @@ class Parser {
       }
       return expr;
     }
-  }
-=======
     return ifNode;
-  } // cha
->>>>>>> 1886b2c57c94f6ab33484f09b45bcff433d28738
+  }  
 }
