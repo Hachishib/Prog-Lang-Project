@@ -1,12 +1,12 @@
 // JavaScript equivalent of the Java Compiler class with added parser functionality
-const readline = require('readline');
+const readline = require("readline");
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
-rl.question('Enter a line of code: ', (x) => {
+rl.question("Enter a line of code: ", (x) => {
   rl.close();
 
   let operators = new Array(x.length);
@@ -17,7 +17,12 @@ rl.question('Enter a line of code: ', (x) => {
   let literals = new Array(x.length);
   let tokens = []; // Added for parser
 
-  let opMarker = 0, consMarker = 0, puncMarker = 0, keyMarker = 0, idMarker = 0, litMarker = 0;
+  let opMarker = 0,
+    consMarker = 0,
+    puncMarker = 0,
+    keyMarker = 0,
+    idMarker = 0,
+    litMarker = 0;
   let p = 0;
   let q = false;
 
@@ -28,7 +33,7 @@ rl.question('Enter a line of code: ', (x) => {
       if (!q) {
         const lit = x.substring(p, i + 1);
         literals[litMarker++] = lit;
-        tokens.push({ type: 'literal', value: lit }); // Add to tokens for parser
+        tokens.push({ type: "literal", value: lit });
         p = i + 1;
       } else {
         p = i;
@@ -41,34 +46,34 @@ rl.question('Enter a line of code: ', (x) => {
         let token = x.substring(p, i);
         if (isKeyword(token)) {
           keywords[keyMarker++] = token;
-          tokens.push({ type: 'keyword', value: token }); // Add to tokens for parser
+          tokens.push({ type: "keyword", value: token });
         } else if (isConstant(token)) {
           constants[consMarker++] = token;
-          tokens.push({ type: 'constant', value: token }); // Add to tokens for parser
+          tokens.push({ type: "constant", value: token });
         } else {
           identifiers[idMarker++] = token;
-          tokens.push({ type: 'identifier', value: token }); // Add to tokens for parser
+          tokens.push({ type: "identifier", value: token });
         }
       }
 
       if (isPunctuation(x, i)) {
         punctuators[puncMarker++] = String(ch);
-        tokens.push({ type: 'punctuator', value: ch }); // Add to tokens for parser
+        tokens.push({ type: "punctuator", value: ch });
         p = i + 1;
       } else if (i < x.length - 1) {
         let op2 = x.substring(i, i + 2);
         if (isOperator(op2)) {
           operators[opMarker++] = op2;
-          tokens.push({ type: 'operator', value: op2 }); // Add to tokens for parser
+          tokens.push({ type: "operator", value: op2 });
           i++;
         } else {
           operators[opMarker++] = String(ch);
-          tokens.push({ type: 'operator', value: ch }); // Add to tokens for parser
+          tokens.push({ type: "operator", value: ch });
         }
         p = i + 1;
       } else {
         operators[opMarker++] = String(ch);
-        tokens.push({ type: 'operator', value: ch }); // Add to tokens for parser
+        tokens.push({ type: "operator", value: ch });
         p = i + 1;
       }
     }
@@ -77,17 +82,28 @@ rl.question('Enter a line of code: ', (x) => {
   if (!isCorrect(x)) {
     console.log("ERROR!");
   } else {
-    console.log("_______________________________________________________________");
+    console.log(
+      "_____________________________________________________________"
+    );
     display("Keywords\t", keywords, keyMarker);
     display("Identifiers\t", identifiers, idMarker);
     display("Operators\t", operators, opMarker);
     display("Constants\t", constants, consMarker);
     display("Punctuators\t", punctuators, puncMarker);
     display("Literals\t", literals, litMarker);
-    console.log("_______________________________________________________________");
+    console.log(
+      "_____________________________________________________________"
+    );
 
-    // Add parser functionality
-    const filteredTokens = tokens.filter(token => token.value.trim() !== '' && token.type !== 'punctuator' && token.value !== ';');
+    const filteredTokens = tokens.filter(
+      // here din nabago
+      (token) =>
+        token.value.trim() !== "" &&
+        !(
+          token.type === "punctuator" &&
+          ["!", "?", "[", "]"].includes(token.value)
+        )
+    );
     const parser = new Parser(filteredTokens);
     const ast = parser.parse();
     console.log("Abstract Syntax Tree (AST):", JSON.stringify(ast, null, 2));
@@ -114,16 +130,34 @@ function display(name, arr, mark) {
 
 function isKeyword(key) {
   const keywords = [
-    "boolean", "break", "case", "char", "class", "default", "do", "else", "float",
-    "for", "if", "import", "int", "new", "private", "public", "return", "static",
-    "switch", "void", "while", "String", "length", "continue"
+    "boolean",
+    "break",
+    "case",
+    "char",
+    "class",
+    "default",
+    "do",
+    "else",
+    "float",
+    "for",
+    "if",
+    "import",
+    "int",
+    "new",
+    "private",
+    "public",
+    "return",
+    "static",
+    "switch",
+    "void",
+    "while",
+    "String",
+    "length",
+    "continue",
+    "else if",
+    "else",
   ];
-  for (let keyword of keywords) {
-    if (key === keyword) {
-      return true;
-    }
-  }
-  return false;
+  return keywords.includes(key);
 }
 
 function isConstant(cons) {
@@ -131,62 +165,55 @@ function isConstant(cons) {
 }
 
 function isInteger(str) {
-  if (str.length === 0) return false;
-  for (let ch of str) {
-    if (!isDigit(ch)) {
-      return false;
-    }
-  }
-  return true;
+  return /^\d+$/.test(str);
 }
 
 function isFloat(str) {
-  let point = 0;
-  if (str.length === 0) return false;
-
-  for (let ch of str) {
-    if (ch === '.') {
-      if (point === 1) return false;
-      point = 1;
-    } else if (!isDigit(ch)) {
-      return false;
-    }
-  }
-  return point === 1;
+  return /^\d+\.\d+$/.test(str);
 }
 
 function isOperator(op) {
   const operators = [
-    "+", "-", "*", "/", "%", "=", "<", ">", "!", 
-    "++", "--", "+=", "-=", "*=", "/=", 
-    ">=", "<=", "==", "!=", "||", "&&"
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "=",
+    "<",
+    ">",
+    "!",
+    "++",
+    "--",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+    ">=",
+    "<=",
+    "==",
+    "!=",
+    "||",
+    "&&",
   ];
-  for (let operator of operators) {
-    if (op === operator) {
-      return true;
-    }
-  }
-  return false;
+  return operators.includes(op);
 }
 
 function isOperatorChar(ch) {
-  return "+-*/=%<>!&|".indexOf(ch) !== -1;
+  return "+-*/=%<>!&|".includes(ch);
 }
 
 function isPunctuation(code, index) {
   let ch = code.charAt(index);
-
   const punctuators = ";,!?[]{}()";
 
-  if (punctuators.indexOf(ch) !== -1) {
-    return true;
-  }
+  if (punctuators.includes(ch)) return true;
 
-  if (ch === '.') {
+  if (ch === ".") {
     if (index > 0 && index < code.length - 1) {
-      if (isDigit(code.charAt(index - 1)) && isDigit(code.charAt(index + 1))) {
-        return false;
-      }
+      return !(
+        isDigit(code.charAt(index - 1)) && isDigit(code.charAt(index + 1))
+      );
     }
     return true;
   }
@@ -195,37 +222,36 @@ function isPunctuation(code, index) {
 }
 
 function isCorrect(code) {
-  let brackets = 0, parentheses = 0;
+  let brackets = 0,
+    parentheses = 0;
   let inside = false;
-  let last = '\0';
+  let last = "\0";
 
   for (let i = 0; i < code.length; i++) {
     let ch = code.charAt(i);
 
-    if (!isWhitespace(ch)) {
-      last = ch;
-    }
+    if (!isWhitespace(ch)) last = ch;
 
-    if (ch === '"') {
-      inside = !inside;
-    }
+    if (ch === '"') inside = !inside;
 
     if (!inside) {
-      if (ch === '{') brackets++;
-      if (ch === '}') brackets--;
-      if (ch === '(') parentheses++;
-      if (ch === ')') parentheses--;
+      if (ch === "{") brackets++;
+      if (ch === "}") brackets--;
+      if (ch === "(") parentheses++;
+      if (ch === ")") parentheses--;
 
-      if (brackets < 0 || parentheses < 0) {
-        return false;
-      }
+      if (brackets < 0 || parentheses < 0) return false;
     }
   }
 
-  return (last === '}' || last === ';') && brackets === 0 && parentheses === 0 && !inside;
+  return (
+    (last === "}" || last === ";") &&
+    brackets === 0 &&
+    parentheses === 0 &&
+    !inside
+  );
 }
 
-// Helper functions to replace Java's Character methods
 function isWhitespace(ch) {
   return /\s/.test(ch);
 }
@@ -234,241 +260,229 @@ function isDigit(ch) {
   return /^\d$/.test(ch);
 }
 
-// Parser class from the second code
 class Parser {
   constructor(tokens) {
-    this.tokens = Array.isArray(tokens) ? tokens.filter(token => token.value.trim() !== '') : [];
+    this.tokens = tokens.filter((token) => token.value.trim() !== "");
     this.symbolTable = {};
     this.errors = [];
   }
 
   parse() {
+    // Medyo nabago dito yung else tinanggalan ng keyword
     const ast = [];
-
     while (this.tokens.length > 0) {
-      if (this.tokens.length >= 3 && this.isAssignment(this.tokens)) {
+      if (this.isAssignment(this.tokens)) {
         const assignment = this.parseAssignment();
-        if (assignment.error) {
-          this.errors.push(assignment.error);
-        } else {
-          ast.push(assignment);
-        }
-      // cha 
-      } else if (this.tokens[0].type === 'keyword' && this.tokens[0].value === 'if') {
-        const ifStatement = this.parseIfStatement();  // Parse the 'if' statement
-        if (ifStatement && !ifStatement.error) {
-          ast.push(ifStatement);
-        } else if (ifStatement && ifStatement.error) {
-          this.errors.push(ifStatement.error);
-        } // cha
-      } else if (this.tokens.length >= 3) {
-        const expression = this.parseExpression();
-        if (expression.error) {
-          this.errors.push(expression.error);
-        } else {
-          ast.push(expression);
-        }
+        assignment.error
+          ? this.errors.push(assignment.error)
+          : ast.push(assignment);
+      } else if (this.tokens[0]?.value === "if") {
+        const ifStatement = this.parseIfStatement();
+        ifStatement?.error
+          ? this.errors.push(ifStatement.error)
+          : ast.push(ifStatement);
       } else {
-        this.errors.push(`Unprocessed tokens remaining: ${this.tokens.map(t => t.value).join(' ')}`);
-        break;
+        const expression = this.parseExpression();
+        expression?.error
+          ? this.errors.push(expression.error)
+          : ast.push(expression);
       }
     }
-
-    // Return AST and errors if any
     return { ast, errors: this.errors };
   }
 
-  // Handle variable assignment like 'int a = 10'
   parseAssignment() {
-    const keyword = this.tokens.shift(); // e.g., 'int'
-    const identifier = this.tokens.shift(); // e.g., 'a'
-    const op = this.tokens.shift(); // e.g., '='
+    const keyword = this.tokens.shift();
+    const identifier = this.tokens.shift();
+    const op = this.tokens.shift();
 
-    if (op.type !== 'operator' || op.value !== '=') {
-      return { error: `Invalid assignment syntax near '${op.value}'` };
+    if (op?.value !== "=") {
+      return { error: `Invalid assignment syntax near '${op?.value}'` };
     }
 
     const value = this.tokens.shift();
-
-    // Check if the variable is already declared
     if (this.symbolTable[identifier.value]) {
-      return { error: `Error: Variable '${identifier.value}' is already declared.` };
+      return {
+        error: `Error: Variable '${identifier.value}' already declared`,
+      };
     }
 
-    // Check type correctness
     if (!this.isValidAssignment(value, keyword.value)) {
-      return { error: `Error: Type mismatch. Cannot assign ${value.value} to '${keyword.value} ${identifier.value}'` };
+      return {
+        error: `Type mismatch assigning ${value?.value} to ${keyword.value}`,
+      };
     }
 
-    // Add to symbol table if valid
     this.symbolTable[identifier.value] = { type: keyword.value };
-
     return {
-      type: 'Assignment',
+      type: "Assignment",
       keyword: keyword.value,
       identifier: identifier.value,
-      value: this.parseLiteralOrExpression(value)
+      value: this.parseLiteralOrExpression(value),
     };
   }
 
-  // Validate type of assigned value
   isValidAssignment(value, expectedType) {
-    if (expectedType === 'int' && isInteger(value.value)) {
-      return true;
-    }
-    if (expectedType === 'float' && isFloat(value.value)) {
-      return true;
-    }
-    if (expectedType === 'String' && value.type === 'literal') {
-      return true;
-    }
+    if (expectedType === "int") return isInteger(value.value);
+    if (expectedType === "float") return isFloat(value.value);
+    if (expectedType === "String") return value.type === "literal";
     return false;
   }
 
   parseLiteralOrExpression(token) {
-    if (token.type === 'constant' || token.type === 'literal') {
-      return {
-        type: 'Literal',
-        value: token.value
-      };
-    } else if (token.type === 'identifier') {
-      if (!this.symbolTable[token.value]) {
-        this.errors.push(`Error: Undeclared variable '${token.value}'`);
-        return { error: `Undeclared variable '${token.value}'` };
-      }
-      return {
-        type: 'Variable',
-        value: token.value
-      };
+    if (token.type === "constant" || token.type === "literal") {
+      return { type: "Literal", value: token.value };
+    } else if (token.type === "identifier") {
+      return { type: "Variable", value: token.value };
     }
     return { error: `Unexpected token '${token.value}'` };
   }
 
-  // Check if the current tokens match an assignment pattern
   isAssignment(tokens) {
+    const typeKeywords = ["int", "float", "String", "boolean", "char"]; // A Variable add For assignment
     return (
       tokens.length >= 3 &&
-      tokens[0].type === 'keyword' &&
-      tokens[1].type === 'identifier' &&
-      tokens[2].type === 'operator' &&
-      tokens[2].value === '='
+      typeKeywords.includes(tokens[0].value) && // ONLY type keywords
+      tokens[1].type === "identifier" &&
+      tokens[2].type === "operator" &&
+      tokens[2].value === "="
     );
   }
 
-  // Parse expressions (e.g., a + b or a + 5)
   parseExpression() {
-    const left = this.tokens.shift(); // Left operand
-    const op = this.tokens.shift();   // Operator
-    const right = this.tokens.shift(); // Right operand
+    const left = this.tokens.shift();
+    const op = this.tokens.shift();
+    const right = this.tokens.shift();
 
-    if (!op || op.type !== 'operator') {
-      return { error: `Unexpected token '${op?.value}', expected an operator.` };
+    if (!op || op.type !== "operator") {
+      return { error: `Unexpected token '${op?.value}', expected operator` };
     }
 
-    // Validate left and right operands
     const leftParsed = this.parseLiteralOrExpression(left);
     const rightParsed = this.parseLiteralOrExpression(right);
 
     if (leftParsed.error || rightParsed.error) {
-      return { error: `Invalid expression '${left.value} ${op.value} ${right.value}'` };
+      return {
+        error: `Invalid expression: ${left.value} ${op.value} ${right.value}`,
+      };
     }
 
     return {
-      type: 'Expression',
+      type: "Expression",
       left: leftParsed,
       operator: op.value,
-      right: rightParsed
+      right: rightParsed,
     };
   }
 
-  // cha - if parsing
   parseIfStatement() {
-    const consume = () => this.tokens.shift();
+    // Nabago to inalisan na mga errors yeah
+    if (this.tokens[0]?.value !== "if") return null;
+    this.tokens.shift(); // Consume 'if'
 
-    const expect = (expValue) => {
-      const token = consume();
-      if (!token || token.value !== expValue) {
-        this.errors.push(`Expected '${expValue}', but found '${token?.value || 'EOF'}'`);
-        return false;
-      }
-      return true;
-    };
-
-    const conditionParsed = () => {
-      if (!expect('(')) return null;
-      const left = this.tokens.shift();
-      const operator = this.tokens.shift();
-      const right = this.tokens.shift();
-
-      if (!left || !operator || !right) {
-        this.errors.push(`Invalid condition syntax '${left?.value || ''} ${operator?.value || ''} ${right?.value || ''}'`);
-        return null;
-      }
-
-      if (!expect(')')) return null;
-
-      return {
-        type: 'Condition',
-        left: this.parseLiteralOrExpression(left),
-        operator: operator.value,
-        right: this.parseLiteralOrExpression(right)
-      };
-    };
-
-    const blockParsed = () => {
-      const body = [];
-
-      if (!expect('{')) return null;
-
-      while (this.tokens.length && this.tokens[0].value !== '}') {
-        const subparser = new Parser(this.tokens);
-        const result = subparser.parse();
-        this.tokens = subparser.tokens;
-        this.errors.push(...subparser.errors);
-        body.push(...result.ast);
-      }
-
-      if (!expect('}')) return null;
-      return body;
-    };
-
-    const ifToken = consume(); // 'if'
-    if (!ifToken || ifToken.value !== 'if') {
-      this.errors.push("Expected 'if' at the start of an if-statement.");
+    // Parse condition
+    if (this.tokens[0]?.value !== "(") {
+      this.errors.push("Expected '(' after 'if'");
       return null;
     }
+    this.tokens.shift(); // Consume '('
+    const condition = this.parseCondition();
+    if (this.tokens[0]?.value !== ")") {
+      this.errors.push("Expected ')' after condition");
+      return null;
+    }
+    this.tokens.shift(); // Consume ')'
 
-    const condition = conditionParsed();
-    const thenBranch = blockParsed();
-    if (!condition || !thenBranch) return null;
+    // Parse then block
+    const thenBranch = this.parseBlock();
+    if (!thenBranch) return null;
 
     const ifNode = {
-      type: 'IfStatement',
+      type: "IfStatement",
       condition,
       thenBranch,
       elseIfBranches: [],
-      elseBranch: null
+      elseBranch: null,
     };
 
-    while (this.tokens.length > 0 && this.tokens[0].value === 'else') {
-      consume(); // Consume 'else'
-      if (this.tokens[0] && this.tokens[0].value === 'if') {
-        consume(); // Consume 'if' inside the else block
+    while (this.tokens[0]?.value === "else") {
+      this.tokens.shift(); // Consume 'else'
 
-        const elseifCondition = conditionParsed();
-        const elseifBranch = blockParsed();
-        if (!elseifCondition || !elseifBranch) break;
-
-        ifNode.elseIfBranches.push({
-          condition: elseifCondition,
-          thenBranch: elseifBranch
-        });
+      if (this.tokens[0]?.value === "if") {
+        const elseIfNode = this.parseIfStatement();
+        if (elseIfNode) {
+          ifNode.elseIfBranches.push(elseIfNode);
+        }
       } else {
-        const elseBranch = blockParsed();
-        if (!elseBranch) break;
-        ifNode.elseBranch = elseBranch;  // Properly set else branch
+        ifNode.elseBranch = this.parseBlock();
+        break;
       }
     }
 
-  return ifNode;
-} // cha
+    return ifNode;
+  }
+
+  parseCondition() {
+    // YDi ko ma mahanap yung ConditionedParsed  so gumawa nalnag ako from logic sa kabila to here
+    const left = this.tokens.shift();
+    const operatorToken = this.tokens.shift();
+
+    // Validate operator is a comparison operator
+    const validOperators = ["==", "!=", "<", ">", "<=", ">="];
+    if (!validOperators.includes(operatorToken.value)) {
+      this.errors.push(
+        `Invalid operator '${operatorToken.value}' in condition`
+      );
+    }
+
+    const right = this.tokens.shift();
+    return {
+      type: "Condition",
+      left: this.parseLiteralOrExpression(left),
+      operator: operatorToken.value,
+      right: this.parseLiteralOrExpression(right),
+    };
+  }
+
+  parseBlock() {
+    // PAra to for Detecting kung merong bracket or  wala, pwede lagyan error handling
+    if (this.tokens[0]?.value !== "{") return null;
+    this.tokens.shift(); // Remove '{'
+
+    const statements = [];
+    while (this.tokens.length > 0 && this.tokens[0].value !== "}") {
+      const statement = this.parseStatement();
+      if (statement) statements.push(statement);
+    }
+
+    if (this.tokens.length === 0) {
+      this.errors.push("Unclosed block: Missing '}'");
+    } else {
+      this.tokens.shift(); // Remove '}'
+    }
+
+    return statements;
+  }
+
+  parseStatement() {
+    // Bagong Fucntion to for handling to ,
+
+    if (this.tokens.length === 0) return null;
+    if (this.isAssignment(this.tokens)) {
+      return this.parseAssignment();
+    }
+    // Handle if-statements
+    else if (this.tokens[0].value === "if") {
+      return this.parseIfStatement();
+    } else {
+      const expr = this.parseExpression();
+      // Ensure semicolon termination
+      if (this.tokens[0]?.value === ";") {
+        this.tokens.shift();
+      } else {
+        this.errors.push("Missing ';' after expression");
+      }
+      return expr;
+    }
+  }
+}
