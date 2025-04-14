@@ -1,243 +1,207 @@
-// JavaScript equivalent of the Java Compiler class with added parser functionality
-const readline = require('readline');
+const readline = require("readline");
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const ErrorType = { SYNTAX: "syntax", SEMANTIC: "semantic",};
+let lines = [];
+console.log("Enter your code (type 'END' on a new line to finish):");
+rl.on("line", (line) => {
+    if (line.trim() === "END") {
+        rl.close();
+        const fullCode = lines.join('\n');
+        analyzeAndParse(fullCode);
+    } else {
+        lines.push(line);
+    }
 });
 
-rl.question('Enter a line of code: ', (x) => {
-  rl.close();
-
+function analyzeAndParse(x) 
+{
   let operators = new Array(x.length);
   let constants = new Array(x.length);
   let punctuators = new Array(x.length);
   let keywords = new Array(x.length);
   let identifiers = new Array(x.length);
   let literals = new Array(x.length);
-  let tokens = []; // Added for parser
+  let tokens = [];
 
-  let opMarker = 0, consMarker = 0, puncMarker = 0, keyMarker = 0, idMarker = 0, litMarker = 0;
+  let markers = {opMarker: 0, consMarker: 0, puncMarker: 0, keyMarker: 0, idMarker: 0, litMarker: 0};
   let p = 0;
   let q = false;
 
-  for (let i = 0; i < x.length; i++) {
+  for (let i = 0; i < x.length; i++) 
+  {
     let ch = x.charAt(i);
-    if (ch === '"') {
+    if (ch === '"') 
+    {
       q = !q;
-      if (!q) {
+      if (!q) 
+      {
         const lit = x.substring(p, i + 1);
-        literals[litMarker++] = lit;
-        tokens.push({ type: 'literal', value: lit }); // Add to tokens for parser
+        literals[markers.litMarker++] = lit;
+        tokens.push({ type: "literal", value: lit });
         p = i + 1;
-      } else {
+      } 
+      else 
+      {
         p = i;
       }
       continue;
     }
+    
+    if (!q && ch === '.') 
+    {
+      processToken(x, p, i, keywords, constants, identifiers, tokens, markers);
+      punctuators[markers.puncMarker++] = ".";
+      tokens.push({ type: "punctuator", value: "." });
+      p = i + 1;
+      continue;
+    }
 
-    if (!q && (isWhitespace(ch) || isPunctuation(x, i) || isOperatorChar(ch))) {
-      if (p !== i) {
-        let token = x.substring(p, i);
-        if (isKeyword(token)) {
-          keywords[keyMarker++] = token;
-          tokens.push({ type: 'keyword', value: token }); // Add to tokens for parser
-        } else if (isConstant(token)) {
-          constants[consMarker++] = token;
-          tokens.push({ type: 'constant', value: token }); // Add to tokens for parser
-        } else {
-          identifiers[idMarker++] = token;
-          tokens.push({ type: 'identifier', value: token }); // Add to tokens for parser
-        }
-      }
-
-      if (isPunctuation(x, i)) {
-        punctuators[puncMarker++] = String(ch);
-        tokens.push({ type: 'punctuator', value: ch }); // Add to tokens for parser
+    if (!q && (isWhitespace(ch) || isPunctuation(x, i) || isOperatorChar(ch))) 
+    {
+      processToken(x, p, i, keywords, constants, identifiers, tokens, markers);
+      if (isPunctuation(x, i)) 
+      {
+        punctuators[markers.puncMarker++] = String(ch);
+        tokens.push({ type: "punctuator", value: ch });
         p = i + 1;
-      } else if (i < x.length - 1) {
+      } 
+      else if (i < x.length - 1 && !isWhitespace(ch)) 
+      {
         let op2 = x.substring(i, i + 2);
-        if (isOperator(op2)) {
-          operators[opMarker++] = op2;
-          tokens.push({ type: 'operator', value: op2 }); // Add to tokens for parser
+        if (isOperator(op2)) 
+        {
+          operators[markers.opMarker++] = op2;
+          tokens.push({ type: "operator", value: op2 });
           i++;
-        } else {
-          operators[opMarker++] = String(ch);
-          tokens.push({ type: 'operator', value: ch }); // Add to tokens for parser
+        } 
+        else if (isOperatorChar(ch)) 
+        {
+          operators[markers.opMarker++] = String(ch);
+          tokens.push({ type: "operator", value: ch });
         }
         p = i + 1;
-      } else {
-        operators[opMarker++] = String(ch);
-        tokens.push({ type: 'operator', value: ch }); // Add to tokens for parser
+      } 
+      else if (isOperatorChar(ch)) 
+      {
+        operators[markers.opMarker++] = String(ch);
+        tokens.push({ type: "operator", value: ch });
         p = i + 1;
+      } 
+      else 
+      {
+        p = i + 1; // Skip whitespace
       }
     }
   }
-
-  if (!isCorrect(x)) {
-    console.log("ERROR!");
-  } else {
-    console.log("_______________________________________________________________");
-    display("Keywords\t", keywords, keyMarker);
-    display("Identifiers\t", identifiers, idMarker);
-    display("Operators\t", operators, opMarker);
-    display("Constants\t", constants, consMarker);
-    display("Punctuators\t", punctuators, puncMarker);
-    display("Literals\t", literals, litMarker);
-    console.log("_______________________________________________________________");
-
-    // Add parser functionality
-    const filteredTokens = tokens.filter(token => token.value.trim() !== '' && token.type !== 'punctuator' && token.value !== ';');
-    const parser = new Parser(filteredTokens);
-    const ast = parser.parse();
-    console.log("Abstract Syntax Tree (AST):", JSON.stringify(ast, null, 2));
+  // Handle any remaining token at the end
+  if (p < x.length && !q) 
+  {
+    processToken(x, p, x.length, keywords, constants, identifiers, tokens, markers);
   }
-});
+  console.log("_____________________________________________________________");
+  display("Keywords\t", keywords, markers.keyMarker);
+  display("Identifiers\t", identifiers, markers.idMarker);
+  display("Operators\t", operators, markers.opMarker);
+  display("Constants\t", constants, markers.consMarker);
+  display("Punctuators\t", punctuators, markers.puncMarker);
+  display("Literals\t", literals, markers.litMarker);
+  console.log("_____________________________________________________________");
+  const filteredTokens = tokens.filter((token) => token.value.trim() !== "" && !(token.type === "punctuator" && ["!", "?", "[", "]"].includes(token.value)));
+  const parser = new Parser(filteredTokens);
+  const ast = parser.parse();
+  console.log("Abstract Syntax Tree (AST):", JSON.stringify(ast, null, 2));
+  parser.analyzeErrors();
+}
+
+function processToken(x, start, end, keywords, constants, identifiers, tokens, markers) {
+    if (start !== end) {
+        let token = x.substring(start, end);
+        if (isKeyword(token)) {
+            keywords[markers.keyMarker++] = token;
+            tokens.push({ type: "keyword", value: token });
+        } else if (isConstant(token)) {
+            constants[markers.consMarker++] = token;
+            tokens.push({ type: "constant", value: token });
+        } else if (token.trim() !== "") {
+            identifiers[markers.idMarker++] = token;
+            tokens.push({ type: "identifier", value: token });
+        }
+    }
+}
 
 function display(name, arr, mark) {
-  process.stdout.write(name + ": ");
-  for (let i = 0; i < mark; i++) {
-    if (arr[i] === null) continue;
-    let repeated = 0;
-    for (let j = 0; j < i; j++) {
-      if (arr[i] === arr[j]) {
-        repeated = 1;
-        break;
-      }
+    process.stdout.write(name + ": ");
+    for (let i = 0; i < mark; i++) {
+        if (arr[i] === null) continue;
+        let repeated = 0;
+        for (let j = 0; j < i; j++) {
+            if (arr[i] === arr[j]) {
+                repeated = 1;
+                break;
+            }
+        }
+        if (repeated === 0) {
+            process.stdout.write(arr[i] + "  ");
+        }
     }
-    if (repeated === 0) {
-      process.stdout.write(arr[i] + "  ");
-    }
-  }
-  console.log();
+    console.log();
 }
 
-function isKeyword(key) {
-  const keywords = [
-    "boolean", "break", "case", "char", "class", "default", "do", "else", "float",
-    "for", "if", "import", "int", "new", "private", "public", "return", "static",
-    "switch", "void", "while", "String", "length", "continue"
-  ];
-  for (let keyword of keywords) {
-    if (key === keyword) {
-      return true;
-    }
-  }
-  return false;
+function isKeyword(key) 
+{
+  const keywords = ["boolean", "break", "case", "char", "class", "default", "do", "else", "float","for", "if", "import", "int", "new", "private", "public", "return", "static","switch", "void", "while", "String", "length", "continue", "else if", "else"];
+  return keywords.includes(key);
 }
-
-function isConstant(cons) {
+  
+function isConstant(cons) 
+{
   return isInteger(cons) || isFloat(cons);
 }
-
-function isInteger(str) {
-  if (str.length === 0) return false;
-  for (let ch of str) {
-    if (!isDigit(ch)) {
-      return false;
-    }
-  }
-  return true;
+  
+function isInteger(str) 
+{
+  return /^\d+$/.test(str);
 }
-
-function isFloat(str) {
-  let point = 0;
-  if (str.length === 0) return false;
-
-  for (let ch of str) {
-    if (ch === '.') {
-      if (point === 1) return false;
-      point = 1;
-    } else if (!isDigit(ch)) {
-      return false;
-    }
-  }
-  return point === 1;
+  
+function isFloat(str) 
+{
+  return /^\d+\.\d+$/.test(str);
 }
-
-function isOperator(op) {
-  const operators = [
-    "+", "-", "*", "/", "%", "=", "<", ">", "!", 
-    "++", "--", "+=", "-=", "*=", "/=", 
-    ">=", "<=", "==", "!=", "||", "&&"
-  ];
-  for (let operator of operators) {
-    if (op === operator) {
-      return true;
-    }
-  }
-  return false;
+  
+function isOperator(op) 
+{
+  const operators = ["+","-","*","/","%","=","<",">","!","++","--","+=","-=","*=","/=",">=","<=","==","!=","||","&&",];
+  return operators.includes(op);
 }
-
-function isOperatorChar(ch) {
-  return "+-*/=%<>!&|".indexOf(ch) !== -1;
+  
+function isOperatorChar(ch) 
+{
+  return "+-*/=%<>!&|".includes(ch);
 }
-
-function isPunctuation(code, index) {
+  
+function isPunctuation(code, index) 
+{
   let ch = code.charAt(index);
+  const punctuators = ";,!?[]{}()";  // Removed '.' from here
 
-  const punctuators = ";,!?[]{}()";
-
-  if (punctuators.indexOf(ch) !== -1) {
-    return true;
+  if (punctuators.includes(ch)) 
+  {
+      return true;
   }
-
-  if (ch === '.') {
-    if (index > 0 && index < code.length - 1) {
-      if (isDigit(code.charAt(index - 1)) && isDigit(code.charAt(index + 1))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   return false;
 }
-
-function isCorrect(code) {
-  let brackets = 0, parentheses = 0;
-  let inside = false;
-  let last = '\0';
-
-  for (let i = 0; i < code.length; i++) {
-    let ch = code.charAt(i);
-
-    if (!isWhitespace(ch)) {
-      last = ch;
-    }
-
-    if (ch === '"') {
-      inside = !inside;
-    }
-
-    if (!inside) {
-      if (ch === '{') brackets++;
-      if (ch === '}') brackets--;
-      if (ch === '(') parentheses++;
-      if (ch === ')') parentheses--;
-
-      if (brackets < 0 || parentheses < 0) {
-        return false;
-      }
-    }
-  }
-
-  return (last === '}' || last === ';') && brackets === 0 && parentheses === 0 && !inside;
+  
+function isWhitespace(ch) 
+{
+  return /\s/.test(ch); 
 }
-
-// Helper functions to replace Java's Character methods
-function isWhitespace(ch) {
-  return /\s/.test(ch);
-}
-
-function isDigit(ch) {
-  return /^\d$/.test(ch);
-}
-
-// Parser class from the second code
-class Parser {
-  constructor(tokens) {
-    this.tokens = Array.isArray(tokens) ? tokens.filter(token => token.value.trim() !== '') : [];
+  
+class Parser 
+{
+  constructor(tokens) 
+  {
+    this.tokens = tokens.filter((token) => token.value.trim() !== "");
     this.symbolTable = {};
     this.errors = [];
   }
@@ -246,130 +210,534 @@ class Parser {
     const ast = [];
 
     while (this.tokens.length > 0) {
-      if (this.tokens.length >= 3 && this.isAssignment(this.tokens)) {
-        const assignment = this.parseAssignment();
-        if (assignment.error) {
-          this.errors.push(assignment.error);
+        const statement = this.parseStatement();
+        if (statement) {
+            this.handleParsedStatement(statement, "Failed to parse statement", ast);
         } else {
-          ast.push(assignment);
+            // If parseStatement returns null, it usually indicates an error
+            // or end of input. We might want to add error handling here.
+            if(this.tokens.length > 0) {
+                this.addError(`Unrecognized token: ${this.tokens[0]?.value}`);
+                this.tokens.shift();
+            }
         }
-      } else if (this.tokens.length >= 3) {
-        const expression = this.parseExpression();
-        if (expression.error) {
-          this.errors.push(expression.error);
-        } else {
-          ast.push(expression);
-        }
-      } else {
-        this.errors.push(`Unprocessed tokens remaining: ${this.tokens.map(t => t.value).join(' ')}`);
-        break;
-      }
     }
-
-    // Return AST and errors if any
     return { ast, errors: this.errors };
   }
 
-  // Handle variable assignment like 'int a = 10'
-  parseAssignment() {
-    const keyword = this.tokens.shift(); // e.g., 'int'
-    const identifier = this.tokens.shift(); // e.g., 'a'
-    const op = this.tokens.shift(); // e.g., '='
+  // Helper functions for parsing
+  parseAssignment() 
+  {
+    const keyword = this.tokens.shift();
+    const identifier = this.tokens.shift();
+    const op = this.tokens.shift();
 
-    if (op.type !== 'operator' || op.value !== '=') {
-      return { error: `Invalid assignment syntax near '${op.value}'` };
+    if (op?.value !== "=") 
+    {
+      return { error: `Invalid assignment syntax near '${op?.value}'` };
     }
-
     const value = this.tokens.shift();
+    this.consumeSemicolon(`Missing semicolon after assignment of '${identifier.value}'`);
 
-    // Check if the variable is already declared
-    if (this.symbolTable[identifier.value]) {
-      return { error: `Error: Variable '${identifier.value}' is already declared.` };
+    if (this.symbolTable[identifier.value]) 
+    {
+      return { error: `Error: Variable '${identifier.value}' already declared` };
     }
-
-    // Check type correctness
-    if (!this.isValidAssignment(value, keyword.value)) {
-      return { error: `Error: Type mismatch. Cannot assign ${value.value} to '${keyword.value} ${identifier.value}'` };
+    if (!this.isValidAssignment(value, keyword.value)) 
+    {
+      return { error: `Type mismatch assigning ${value?.value} to ${keyword.value}` };
     }
-
-    // Add to symbol table if valid
     this.symbolTable[identifier.value] = { type: keyword.value };
-
     return {
-      type: 'Assignment',
-      keyword: keyword.value,
-      identifier: identifier.value,
-      value: this.parseLiteralOrExpression(value)
+        type: "Assignment",
+        keyword: keyword.value,
+        identifier: identifier.value,
+        value: this.parseLiteralOrExpression(value),
     };
   }
 
-  // Validate type of assigned value
-  isValidAssignment(value, expectedType) {
-    if (expectedType === 'int' && isInteger(value.value)) {
-      return true;
-    }
-    if (expectedType === 'float' && isFloat(value.value)) {
-      return true;
-    }
-    if (expectedType === 'String' && value.type === 'literal') {
-      return true;
-    }
-    return false;
-  }
-
-  parseLiteralOrExpression(token) {
-    if (token.type === 'constant' || token.type === 'literal') {
-      return {
-        type: 'Literal',
-        value: token.value
-      };
-    } else if (token.type === 'identifier') {
-      if (!this.symbolTable[token.value]) {
-        this.errors.push(`Error: Undeclared variable '${token.value}'`);
-        return { error: `Undeclared variable '${token.value}'` };
-      }
-      return {
-        type: 'Variable',
-        value: token.value
-      };
-    }
-    return { error: `Unexpected token '${token.value}'` };
-  }
-
-  // Check if the current tokens match an assignment pattern
-  isAssignment(tokens) {
-    return (
-      tokens.length >= 3 &&
-      tokens[0].type === 'keyword' &&
-      tokens[1].type === 'identifier' &&
-      tokens[2].type === 'operator' &&
-      tokens[2].value === '='
-    );
-  }
-
-  // Parse expressions (e.g., a + b or a + 5)
-  parseExpression() {
-    const left = this.tokens.shift(); // Left operand
-    const op = this.tokens.shift();   // Operator
-    const right = this.tokens.shift(); // Right operand
-
-    if (!op || op.type !== 'operator') {
-      return { error: `Unexpected token '${op?.value}', expected an operator.` };
+  parseExpression() 
+  {
+    if (this.tokens.length < 3) 
+    {
+      this.addError("Incomplete expression");
+      return { error: "Incomplete expression" };
     }
 
-    // Validate left and right operands
+    const left = this.tokens.shift();
+    const op = this.tokens.shift();
+    const right = this.tokens.shift();
+
+    this.consumeSemicolon(`Missing semicolon after expression`);
+
+    if (!op || op.type !== "operator") 
+    {
+      return { error: `Unexpected token '${op?.value}', expected operator` };
+    }
+
     const leftParsed = this.parseLiteralOrExpression(left);
     const rightParsed = this.parseLiteralOrExpression(right);
 
-    if (leftParsed.error || rightParsed.error) {
-      return { error: `Invalid expression '${left.value} ${op.value} ${right.value}'` };
+    if (leftParsed.error || rightParsed.error) 
+    {
+      return { error: `Invalid expression: ${left.value} ${op.value} ${right.value}` };
+    }
+    return {
+        type: "Expression",
+        left: leftParsed,
+        operator: op.value,
+        right: rightParsed,
+    };
+  }
+
+  parseDeclaration() {
+    const keyword = this.tokens.shift();
+    const identifier = this.tokens.shift();
+
+    // Check for extra tokens after the identifier
+    if (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
+        // Report error and skip tokens until semicolon
+        this.addError(`Unexpected token after declaration of '${identifier.value}'`, ErrorType.SEMANTIC);
+        while (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
+            this.tokens.shift();
+        }
     }
 
+    this.consumeSemicolon(`Missing semicolon after declaration of '${identifier.value}'`);
+
+    if (this.symbolTable[identifier.value]) {
+        return { error: `Error: Variable '${identifier.value}' already declared` };
+    }
+
+    this.symbolTable[identifier.value] = { type: keyword.value };
     return {
-      type: 'Expression',
-      left: leftParsed,
-      operator: op.value,
-      right: rightParsed
+        type: "Declaration",
+        keyword: keyword.value,
+        identifier: identifier.value,
     };
+  }
+
+  parseLiteralOrExpression(token) 
+  {
+    if (!token) return { error: "Missing token in expression" };
+    if (token.type === "constant" || token.type === "literal") return { type: "Literal", value: token.value };
+    if (token.type === "identifier") return { type: "Variable", value: token.value };
+    return { error: `Unexpected token '${token.value}'` };
+  }
+
+  parseIfStatement() 
+  {
+    if (!this.isIfKeyword(this.tokens[0])) 
+    {
+      return null;
+    }
+    this.tokens.shift(); // Consume 'if'
+    if (!this.consumeToken("(", "Expected '(' after 'if'"))
+    {
+      return null;
+    }
+    const condition = this.parseCondition();
+    if (!this.consumeToken(")", "Expected ')' after condition"))
+    {  
+      return null;
+    }
+    const thenBranch = this.parseBlock();
+    if (!thenBranch)
+    {
+      return null;
+    }
+
+    const ifNode = { type: "IfStatement", condition, thenBranch };
+    let elseIfBranches = [];
+
+    while (this.tokens[0]?.value === "else") 
+    {
+      this.tokens.shift(); // Consume 'else'
+      if (this.isIfKeyword(this.tokens[0])) 
+      {
+        const elseIfNode = this.parseIfStatement();
+        if (elseIfNode) 
+        {
+          elseIfBranches.push(elseIfNode);
+        }
+      } 
+      else 
+      {
+        const elseBlock = this.parseBlock();
+        if (elseBlock) 
+        {
+          ifNode.elseBranch = elseBlock;
+        }
+        break;
+      }
+    }
+    if (elseIfBranches.length > 0) 
+    {
+      ifNode.elseIfBranches = elseIfBranches;
+    }
+    return ifNode;
+  }
+
+  parseCondition() 
+  {
+    if (this.tokens.length < 3) 
+    {
+      this.addError("Incomplete condition");
+      return null;
+    }
+      const left = this.tokens.shift();
+      const operatorToken = this.tokens.shift();
+    if (!this.isValidComparisonOperator(operatorToken.value)) 
+    {
+      this.addError(`Invalid comparison operator '${operatorToken.value}' in condition`);
+    }
+    const right = this.tokens.shift();
+    return {
+      type: "Condition",
+      left: this.parseLiteralOrExpression(left),
+      operator: operatorToken.value,
+      right: this.parseLiteralOrExpression(right),
+    };
+  }
+
+  parseBlock() 
+  {
+    if (!this.consumeToken("{", "Expected '{'")) return null;
+    const statements = [];
+    while (this.tokens.length > 0 && this.tokens[0]?.value !== "}") 
+    {
+      if (this.isLoopKeyword(this.tokens[0])) 
+      {
+        const loopStatement = this.parseLoop(this.tokens[0].value);
+        this.handleParsedStatement(loopStatement, `Failed to parse ${this.tokens[0].value} loop`, statements);
+      } 
+      else if (this.isAssignment(this.tokens))
+      {
+        const assignment = this.parseAssignment();
+        this.handleParsedStatement(assignment, `Invalid assignment`, statements);
+      } 
+      else if (this.isIfKeyword(this.tokens[0])) 
+      {
+        const ifStatement = this.parseIfStatement();
+        this.handleParsedStatement(ifStatement, `Failed to parse if statement`, statements);
+      } 
+      else if (this.isMethodCall(this.tokens)) 
+      {
+        const methodCall = this.parseMethodCall();
+        if (methodCall) statements.push(methodCall);
+      } 
+      else if (this.tokens.length >= 3) 
+      {
+        const expr = this.parseExpression();
+        this.handleParsedStatement(expr, `Invalid expression`, statements);
+      } 
+      else if (this.tokens[0]?.value === ";") 
+      {
+        this.tokens.shift();
+      } 
+      else 
+      {
+        this.addError(`Unrecognized token in block: ${this.tokens[0]?.value}`);
+        this.tokens.shift();
+      }
+    }
+    if (this.tokens.length === 0) 
+    {
+      this.addError("Unclosed block: Missing '}'");
+    } 
+    else 
+    {
+      this.tokens.shift(); // Consume '}'
+    }
+    return statements;
+  }
+
+  parseStatement() 
+  {
+    if (this.tokens.length === 0) return null;
+    if (this.isLoopKeyword(this.tokens[0])) return this.parseLoop(this.tokens[0].value);
+    if (this.isAssignment(this.tokens)) return this.parseAssignment();
+    if (this.isIfKeyword(this.tokens[0])) return this.parseIfStatement();
+    if (this.isMethodCall(this.tokens)) 
+    {
+      const methodCall = this.parseMethodCall();
+      this.consumeSemicolon("Missing semicolon after method call");
+      return methodCall;
+    }
+    if (this.isDeclaration(this.tokens)) 
+    {
+      return this.parseDeclaration();
+    }
+    const expr = this.parseExpression();
+    return expr;
+  }
+
+  parseMethodCall() 
+  {
+    const objectParts = [];
+    objectParts.push(this.tokens.shift().value);
+
+    while (this.tokens.length >= 2 && this.tokens[0].value === "." && this.tokens[1].type === "identifier") 
+    {
+      this.tokens.shift();
+      objectParts.push(this.tokens.shift().value);
+    }
+    const method = objectParts.pop();
+    const object = objectParts.join(".");
+
+    if (!this.consumeToken("(", `Expected '(' after method name '${method}'`)) return null;
+    const args = [];
+
+    while (this.tokens.length > 0 && this.tokens[0].value !== ")") 
+    {
+      const arg = this.tokens.shift();
+      args.push(this.parseLiteralOrExpression(arg));
+      if (this.tokens[0]?.value === ",") this.tokens.shift();
+    }
+    if (this.tokens.length === 0) 
+    {
+      this.addError("Unclosed method call: Missing ')'");
+      return { type: "MethodCall", object, method, arguments: args };
+    }
+    this.tokens.shift(); // Consume ')'
+    this.consumeSemicolon(`Missing semicolon after method call to ${object}.${method}`);
+    return { type: "MethodCall", object, method, arguments: args };
+  }
+
+  parseLoop(loopType) 
+  {
+    if (loopType === "do") 
+    {
+      this.tokens.shift();
+      const body = this.parseBlock();
+      if (!body) 
+      {
+        this.addError("Invalid body in do-while loop");
+        return null;
+      }
+      if (!this.consumeToken("while", "Expected 'while' after do block")) return null;
+      if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
+      const condition = this.parseCondition();
+      if (!condition) 
+      {
+        this.addError("Invalid condition in do-while loop");
+        return null;
+      }
+      if (!this.consumeToken(")", "Expected ')' after condition in do-while loop")) return null;
+      this.consumeSemicolon("Missing semicolon after do-while loop");
+      return { type: "DoWhileLoop", condition, body };
+    } 
+    else if (loopType === "while") 
+    {
+      this.tokens.shift();
+      if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
+      const condition = this.parseCondition();
+      if (!condition) 
+      {
+        this.addError("Invalid condition in while loop");
+        return null;
+      }
+      if (!this.consumeToken(")", "Expected ')' after condition in while loop")) return null;
+      const body = this.parseBlock();
+      if (!body) 
+      {
+        this.addError("Invalid body in while loop");
+        return null;
+      }
+      return { type: "WhileLoop", condition, body };
+    } 
+    else if (loopType === "for") 
+    {
+      this.tokens.shift();
+      if (!this.consumeToken("(", "Expected '(' after 'for'")) return null;
+      let init;
+      if (this.isAssignment(this.tokens)) 
+      {
+        init = this.parseAssignment();
+      } 
+      else 
+      {
+        while (this.tokens.length > 0 && this.tokens[0].value !== ";") this.tokens.shift();
+        init = { type: "EmptyStatement" };
+        if (!this.consumeToken(";", "Expected ';' after initialization in for loop")) return null;
+      }
+      let condition;
+      if (this.tokens[0]?.value === ";") 
+      {
+        condition = { type: "EmptyStatement" };
+        this.tokens.shift();
+      } 
+      else 
+      {
+        condition = this.parseCondition();
+        if (!this.consumeToken(";", "Expected ';' after condition in for loop")) return null;
+      }
+      let iteration;
+      if (this.tokens[0]?.value === ")") 
+      {
+        iteration = { type: "EmptyStatement" };
+      } 
+      else 
+      {
+        iteration = this.parseIteration();
+      }
+      if (!this.consumeToken(")", "Expected ')' after iteration expression in for loop")) return null;
+      const body = this.parseBlock();
+      if (!body) 
+      {
+        this.addError("Invalid body in for loop");
+        return null;
+      }
+      return { type: "ForLoop", init, condition, iteration, body };
+    }
+  }
+
+  parseIteration() 
+  {
+    if (this.tokens.length >= 2) 
+    {
+      const token1 = this.tokens[0];
+      const token2 = this.tokens[1];
+      if (token1?.type === "identifier" && (token2?.value === "++" || token2?.value === "--")) 
+      {
+        this.tokens.shift();
+        this.tokens.shift();
+        return {
+          type: token2.value === "++" ? "Increment" : "Decrement",
+          operator: token2.value,
+          argument: { type: "Variable", value: token1.value },
+          form: "postfix",
+        };
+      } 
+      else if ((token1?.value === "++" || token1?.value === "--") && token2?.type === "identifier") 
+      {
+        this.tokens.shift();
+        this.tokens.shift();
+        return {
+          type: token1.value === "++" ? "Increment" : "Decrement",
+          operator: token1.value,
+          argument: { type: "Variable", value: token2.value },
+          form: "prefix",
+        };
+      } 
+      else if (this.tokens.length >= 3 && token1?.type === "identifier" && ["+=", "-=", "*=", "/="].includes(token2?.value)) 
+      {
+        const identifier = this.tokens.shift();
+        const operator = this.tokens.shift();
+        const value = this.tokens.shift();
+        return {
+          type: "CompoundAssignment",
+          operator: operator.value,
+          left: { type: "Variable", value: identifier.value },
+          right: this.parseLiteralOrExpression(value),
+        };
+      } 
+      else if (this.tokens.length >= 5 && token1?.type === "identifier" && token2?.value === "=") 
+      {
+        const left = this.tokens.shift();
+        const equals = this.tokens.shift();
+        const expr = this.parseExpression();
+        return { type: "Assignment", left: { type: "Variable", value: left.value }, operator: "=", right: expr };
+      }
+    }
+    while (this.tokens.length > 0 && this.tokens[0].value !== ")") this.tokens.shift();
+    return { type: "EmptyStatement" };
+  }
+
+  // Validation and Utility Functions
+  isValidComparisonOperator(op) 
+  {
+    const validOperators = ["==", "!=", "<", ">", "<=", ">="];
+    return validOperators.includes(op);
+  }
+
+  isValidAssignment(value, expectedType) 
+  {
+    if (expectedType === "int") return isInteger(value.value);
+    if (expectedType === "float") return isFloat(value.value);
+    if (expectedType === "String") return value.type === "literal";
+    if (expectedType === "boolean") return value.value === "true" || value.value === "false";
+    if (expectedType === "char") return value.type === "literal" && value.value.length === 3;
+    if (expectedType === "void") return value.type === "literal" && value.value.length === 0;
+    if (expectedType === "double") return isFloat(value.value);
+    return false;
+  }
+
+  isAssignment(tokens) 
+  {
+    const typeKeywords = ["int", "float", "String", "boolean", "char"];
+    return tokens.length >= 3 && typeKeywords.includes(tokens[0].value) && tokens[1].type === "identifier" && tokens[2].value === "=";
+  }
+
+  isDeclaration(tokens) 
+  {
+    const typeKeywords = ["int", "float", "String", "boolean", "char"];
+    return tokens.length >= 2 && typeKeywords.includes(tokens[0].value) && tokens[1].type === "identifier";
+  }
+
+  isLoopKeyword(token) 
+  {
+    return token?.type === "keyword" && ["for", "while", "do"].includes(token?.value);
+  }
+
+  isIfKeyword(token)
+  {
+    return token?.type === "keyword" && token?.value === "if";
+  }
+
+  isMethodCall(tokens)
+  {
+    return tokens[0]?.type === "identifier" && tokens.length > 5 && tokens[1]?.value === "." && tokens[3]?.value === "." && tokens[5]?.value === "(";
+  }
+
+  consumeSemicolon(errorMessage) 
+  {
+    if (this.tokens.length > 0 && this.tokens[0]?.type === "punctuator" && this.tokens[0]?.value === ";") 
+    {
+      this.tokens.shift();
+    } 
+    else 
+    {
+      this.addError(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
+    }
+  }
+  consumeToken(expectedToken, errorMessage) 
+  {
+    if (this.tokens.length > 0 && this.tokens[0]?.value === expectedToken) 
+    {
+      this.tokens.shift();
+      return true;
+    } 
+    else 
+    {
+      this.addError(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
+      return false;
+    }
+  }
+
+  addError(message, type = ErrorType.SEMANTIC) 
+  {
+    this.errors.push({ message, type });
+  }
+
+  handleParsedStatement(statement, errorMessage, ast) 
+  {
+    if (statement) 
+    {
+      statement.error ? this.addError(errorMessage) : ast.push(statement);
+    }
+  }
+
+  // New function to analyze errors
+  analyzeErrors() 
+  {
+    let syntaxErrors = this.errors.filter((err) => err.type === ErrorType.SYNTAX);
+    let semanticErrors = this.errors.filter((err) => err.type === ErrorType.SEMANTIC);
+
+    console.log("Syntax Errors:");
+    syntaxErrors.forEach((err) => console.log("- " + err.message));
+
+    console.log("Semantic Errors:");
+    semanticErrors.forEach((err) => console.log("- " + err.message));
   }
 }
