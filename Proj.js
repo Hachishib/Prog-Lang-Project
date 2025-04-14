@@ -110,6 +110,7 @@ function analyzeAndParse(x)
   const filteredTokens = tokens.filter((token) => token.value.trim() !== "" && !(token.type === "punctuator" && ["!", "?", "[", "]"].includes(token.value)));
   const parser = new Parser(filteredTokens);
   const ast = parser.parse();
+  console.log("Filtered Tokens:", filteredTokens);
   console.log("Abstract Syntax Tree (AST):", JSON.stringify(ast, null, 2));
   parser.analyzeErrors();
 }
@@ -202,17 +203,19 @@ class Parser
   constructor(tokens) 
   {
     this.tokens = tokens.filter((token) => token.value.trim() !== "");
-    this.symbolTable = {};
+    this.symbolTable = [{}];
     this.errors = [];
   }
 
   parse() {
     const ast = [];
-
     while (this.tokens.length > 0) {
         const statement = this.parseStatement();
         if (statement) {
-            this.handleParsedStatement(statement, "Failed to parse statement", ast);
+            if (statement.error) {
+                this.addError(statement.error);
+            }
+            ast.push(statement);
         } else {
             // If parseStatement returns null, it usually indicates an error
             // or end of input. We might want to add error handling here.
@@ -222,107 +225,144 @@ class Parser
             }
         }
     }
-    return { ast, errors: this.errors };
+    return { ast };
   }
 
   // Helper functions for parsing
-  parseAssignment() 
-  {
-    const keyword = this.tokens.shift();
+  parseAssignment() {
+    let keyword;
+    if (this.tokens[0]?.type === "keyword") {
+        keyword = this.tokens.shift();
+    }
     const identifier = this.tokens.shift();
     const op = this.tokens.shift();
+    let error = null;
 
-    if (op?.value !== "=") 
-    {
-      return { error: `Invalid assignment syntax near '${op?.value}'` };
+    if (op?.value !== "=") {
+        error = this.addError(`Invalid assignment syntax near '${op?.value}'`);
     }
     const value = this.tokens.shift();
     this.consumeSemicolon(`Missing semicolon after assignment of '${identifier.value}'`);
 
-    if (this.symbolTable[identifier.value]) 
-    {
-      return { error: `Error: Variable '${identifier.value}' already declared` };
+    if (keyword && !this.declareVariable(identifier.value, keyword.value)) {
+        if (error === null) {
+            error = this.addError(`Variable '${identifier.value}' already declared`);
+        }
     }
-    if (!this.isValidAssignment(value, keyword.value)) 
-    {
-      return { error: `Type mismatch assigning ${value?.value} to ${keyword.value}` };
+
+    if (!this.lookupVariable(identifier.value)) {
+        if (error === null) {
+            error = this.addError(`Variable '${identifier.value}' is not declared.`);
+        }
     }
-    this.symbolTable[identifier.value] = { type: keyword.value };
-    return {
+
+    const variable = this.lookupVariable(identifier.value);
+    const parsedValue = this.parseLiteralOrExpression(value);
+
+    // Type checking
+    if (variable && parsedValue && !this.isValidAssignment(parsedValue, variable.type)) {
+        if(error === null){
+            error = this.addError(`Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`, ErrorType.SEMANTIC);
+        }
+    }
+
+    this.assignVariable(identifier.value);
+    const assignmentNode = {
         type: "Assignment",
-        keyword: keyword.value,
+        keyword: keyword?.value,
         identifier: identifier.value,
-        value: this.parseLiteralOrExpression(value),
+        value: parsedValue,
     };
-  }
-
-  parseExpression() 
-  {
-    if (this.tokens.length < 3) 
-    {
-      this.addError("Incomplete expression");
-      return { error: "Incomplete expression" };
+    if (error !== null) {
+        assignmentNode.error = error;
+    }
+    return assignmentNode;
     }
 
-    const left = this.tokens.shift();
-    const op = this.tokens.shift();
-    const right = this.tokens.shift();
+  parseExpression() {
+    let left = this.parseLiteralOrExpression(this.tokens.shift());
+    if (!left) return null;
 
-    this.consumeSemicolon(`Missing semicolon after expression`);
+    while (this.tokens.length > 0 && this.tokens[0].type === "operator") {
+        const op = this.tokens.shift();
+        const right = this.parseLiteralOrExpression(this.tokens.shift());
+        if (!right) return null;
 
-    if (!op || op.type !== "operator") 
-    {
-      return { error: `Unexpected token '${op?.value}', expected operator` };
+        if (op.value === "+") {
+            if (left.dataType === "String" || right.dataType === "String") {
+                // String concatenation is allowed
+                left = {
+                    type: "BinaryExpression",
+                    left: left,
+                    operator: op.value,
+                    right: right,
+                    dataType: "String", // Result is a string
+                };
+                continue;
+            }
+        }
+        // all other operators
+        if (left.dataType === "String" || right.dataType === "String") {
+            this.addError(`Bad operand '${op.value}' to be use in printing.`, ErrorType.SEMANTIC);
+        }
+        left = {
+            type: "BinaryExpression",
+            left: left,
+            operator: op.value,
+            right: right,
+        };
     }
-
-    const leftParsed = this.parseLiteralOrExpression(left);
-    const rightParsed = this.parseLiteralOrExpression(right);
-
-    if (leftParsed.error || rightParsed.error) 
-    {
-      return { error: `Invalid expression: ${left.value} ${op.value} ${right.value}` };
-    }
-    return {
-        type: "Expression",
-        left: leftParsed,
-        operator: op.value,
-        right: rightParsed,
-    };
+    return left;
   }
 
   parseDeclaration() {
     const keyword = this.tokens.shift();
     const identifier = this.tokens.shift();
 
-    // Check for extra tokens after the identifier
-    if (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
-        // Report error and skip tokens until semicolon
-        this.addError(`Unexpected token after declaration of '${identifier.value}'`, ErrorType.SEMANTIC);
-        while (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
-            this.tokens.shift();
-        }
+    // Consume up to semicolon
+    if (this.tokens.length > 0 && this.tokens[0]?.value !== ";") 
+    {
+      this.addError(`Unexpected token after declaration of '${identifier.value}'`, ErrorType.SEMANTIC);
+      while (this.tokens.length > 0 && this.tokens[0]?.value !== ";") 
+      {
+        this.tokens.shift();
+      }
     }
-
     this.consumeSemicolon(`Missing semicolon after declaration of '${identifier.value}'`);
 
-    if (this.symbolTable[identifier.value]) {
-        return { error: `Error: Variable '${identifier.value}' already declared` };
+    if (!this.declareVariable(identifier.value, keyword.value)) 
+    {
+      return { error: `Variable '${identifier.value}' already declared` };
     }
 
-    this.symbolTable[identifier.value] = { type: keyword.value };
     return {
-        type: "Declaration",
-        keyword: keyword.value,
-        identifier: identifier.value,
+      type: "Declaration",
+      keyword: keyword.value,
+      identifier: identifier.value,
     };
   }
 
-  parseLiteralOrExpression(token) 
-  {
+  parseLiteralOrExpression(token) {
     if (!token) return { error: "Missing token in expression" };
-    if (token.type === "constant" || token.type === "literal") return { type: "Literal", value: token.value };
-    if (token.type === "identifier") return { type: "Variable", value: token.value };
-    return { error: `Unexpected token '${token.value}'` };
+    if (token.type === "constant") {
+        if (isInteger(token.value)) return { type: "Literal", value: token.value, dataType: "int" };
+        if (isFloat(token.value)) return { type: "Literal", value: token.value, dataType: "float" };
+        return { error: `Invalid constant: ${token.value}` };
+    }
+    if (token.type === "literal") {
+        return { type: "Literal", value: token.value, dataType: "String" };
+    }
+    if (token.type === "identifier") {
+      const variable = this.lookupVariable(token.value);
+      if (!variable) {
+          return this.addError(`Variable '${token.value}' is not declared.`, ErrorType.SEMANTIC);
+      }
+      if (!variable.initialized) {
+          this.addError(`Variable '${token.value}' is not initialized.`, ErrorType.SEMANTIC);
+          return { type: "Variable", value: token.value, dataType: variable.type};
+      }
+      return { type: "Variable", value: token.value, dataType: variable.type };
+    }
   }
 
   parseIfStatement() 
@@ -403,6 +443,7 @@ class Parser
   parseBlock() 
   {
     if (!this.consumeToken("{", "Expected '{'")) return null;
+    this.pushScope();
     const statements = [];
     while (this.tokens.length > 0 && this.tokens[0]?.value !== "}") 
     {
@@ -449,25 +490,18 @@ class Parser
     {
       this.tokens.shift(); // Consume '}'
     }
+    this.popScope();
     return statements;
   }
 
-  parseStatement() 
-  {
+  parseStatement() {
     if (this.tokens.length === 0) return null;
+
     if (this.isLoopKeyword(this.tokens[0])) return this.parseLoop(this.tokens[0].value);
     if (this.isAssignment(this.tokens)) return this.parseAssignment();
     if (this.isIfKeyword(this.tokens[0])) return this.parseIfStatement();
-    if (this.isMethodCall(this.tokens)) 
-    {
-      const methodCall = this.parseMethodCall();
-      this.consumeSemicolon("Missing semicolon after method call");
-      return methodCall;
-    }
-    if (this.isDeclaration(this.tokens)) 
-    {
-      return this.parseDeclaration();
-    }
+    if (this.isMethodCall(this.tokens)) return this.parseMethodCall();
+    if (this.isDeclaration(this.tokens)) return this.parseDeclaration();
     const expr = this.parseExpression();
     return expr;
   }
@@ -477,7 +511,7 @@ class Parser
     const objectParts = [];
     objectParts.push(this.tokens.shift().value);
 
-    while (this.tokens.length >= 2 && this.tokens[0].value === "." && this.tokens[1].type === "identifier") 
+    while (this.tokens.length > 0 && this.tokens[0].value === ".")
     {
       this.tokens.shift();
       objectParts.push(this.tokens.shift().value);
@@ -486,13 +520,13 @@ class Parser
     const object = objectParts.join(".");
 
     if (!this.consumeToken("(", `Expected '(' after method name '${method}'`)) return null;
-    const args = [];
+    let args = [];
 
-    while (this.tokens.length > 0 && this.tokens[0].value !== ")") 
-    {
-      const arg = this.tokens.shift();
-      args.push(this.parseLiteralOrExpression(arg));
-      if (this.tokens[0]?.value === ",") this.tokens.shift();
+    while (this.tokens.length > 0 && this.tokens[0].value !== ")") {
+        const parsedArg = this.parseExpression();
+        args.push(parsedArg);
+
+        if (this.tokens[0]?.value === ",") this.tokens.shift();
     }
     if (this.tokens.length === 0) 
     {
@@ -500,9 +534,16 @@ class Parser
       return { type: "MethodCall", object, method, arguments: args };
     }
     this.tokens.shift(); // Consume ')'
-    this.consumeSemicolon(`Missing semicolon after method call to ${object}.${method}`);
-    return { type: "MethodCall", object, method, arguments: args };
+    if (this.tokens.length > 0) 
+    {
+      this.consumeSemicolon(`Missing semicolon after method call to <span class="math-inline">\{object\}\.</span>{method}`);
+    }
+    const methodcall = { type: "MethodCall", object, method, arguments: args };
+  
+    this.analyzeMethodCallArguments(methodcall);
+    return methodcall;
   }
+
 
   parseLoop(loopType) 
   {
@@ -644,7 +685,6 @@ class Parser
     return { type: "EmptyStatement" };
   }
 
-  // Validation and Utility Functions
   isValidComparisonOperator(op) 
   {
     const validOperators = ["==", "!=", "<", ">", "<=", ">="];
@@ -666,7 +706,7 @@ class Parser
   isAssignment(tokens) 
   {
     const typeKeywords = ["int", "float", "String", "boolean", "char"];
-    return tokens.length >= 3 && typeKeywords.includes(tokens[0].value) && tokens[1].type === "identifier" && tokens[2].value === "=";
+    return tokens.length >= 4 && typeKeywords.includes(tokens[0].value) && tokens[1].type === "identifier" && tokens[2].value === "=";
   }
 
   isDeclaration(tokens) 
@@ -687,7 +727,7 @@ class Parser
 
   isMethodCall(tokens)
   {
-    return tokens[0]?.type === "identifier" && tokens.length > 5 && tokens[1]?.value === "." && tokens[3]?.value === "." && tokens[5]?.value === "(";
+    return tokens[0]?.type === "identifier" && tokens.some(token => token.value === "(");
   }
 
   consumeSemicolon(errorMessage) 
@@ -701,6 +741,7 @@ class Parser
       this.addError(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
     }
   }
+
   consumeToken(expectedToken, errorMessage) 
   {
     if (this.tokens.length > 0 && this.tokens[0]?.value === expectedToken) 
@@ -715,20 +756,59 @@ class Parser
     }
   }
 
+  analyzeMethodCallArguments(methodCall) {
+    if (methodCall.method === "println") {
+        if (methodCall.arguments.length !== 1) {
+            this.addError("println method expects one argument.", ErrorType.SEMANTIC);
+        }
+    }
+  }
+
+  declareVariable(identifier, type) {
+    const currentScope = this.getCurrentScope();
+    if (currentScope[identifier]) {
+        this.addError(`Variable '${identifier}' already declared in this scope.`, ErrorType.SEMANTIC);
+        return false;
+    }
+    currentScope[identifier] = { type, initialized: false };
+    return true;
+  }
+
+  assignVariable(identifier) {
+    for (let i = this.symbolTable.length - 1; i >= 0; i--) {
+        if(this.symbolTable[i][identifier]){
+            this.symbolTable[i][identifier].initialized = true;
+            return;
+        }
+    }
+    this.addError(`Variable '${identifier}' is not declared.`, ErrorType.SEMANTIC);
+  }
+
+  lookupVariable(identifier) {
+
+      for (let i = this.symbolTable.length - 1; i >= 0; i--) {
+          if (this.symbolTable[i][identifier]) {
+              return this.symbolTable[i][identifier];
+          }
+      }
+      return null; // Variable not found
+  }
+
   addError(message, type = ErrorType.SEMANTIC) 
   {
     this.errors.push({ message, type });
   }
 
-  handleParsedStatement(statement, errorMessage, ast) 
-  {
-    if (statement) 
-    {
-      statement.error ? this.addError(errorMessage) : ast.push(statement);
+  handleParsedStatement(statement, errorMessage, ast) {
+    if (statement) {
+        if (statement.error) {
+            // Error already handled in parse()
+            return;
+        }
+        ast.push(statement);
     }
   }
 
-  // New function to analyze errors
   analyzeErrors() 
   {
     let syntaxErrors = this.errors.filter((err) => err.type === ErrorType.SYNTAX);
@@ -739,5 +819,19 @@ class Parser
 
     console.log("Semantic Errors:");
     semanticErrors.forEach((err) => console.log("- " + err.message));
+  }
+
+  getCurrentScope() {
+    return this.symbolTable[this.symbolTable.length - 1];
+  }
+
+  pushScope() 
+  {
+    this.symbolTable.push({});
+  }
+
+  popScope() 
+  {
+    this.symbolTable.pop();
   }
 }
