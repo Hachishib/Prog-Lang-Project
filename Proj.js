@@ -267,14 +267,14 @@ class Parser {
       const statement = this.parseStatement();
       if (statement) {
         if (statement.error) {
-          this.addError(statement.error);
+          this.addError(statement.error, ErrorType.SYNTAX);
         }
         ast.push(statement);
       } else {
         // If parseStatement returns null, it usually indicates an error
         // or end of input. We might want to add error handling here.
         if (this.tokens.length > 0) {
-          this.addError(`Unrecognized token: ${this.tokens[0]?.value}`);
+          this.addError(`Unrecognized token: ${this.tokens[0]?.value}`, ErrorType.SYNTAX, this.tokens[0]?.loc);
           this.tokens.shift();
         }
       }
@@ -293,7 +293,7 @@ class Parser {
     let error = null;
 
     if (op?.value !== "=") {
-      error = this.addError(`Invalid assignment syntax near '${op?.value}'`);
+      error = this.addError(`Invalid assignment syntax near '${op?.value}'`, ErrorType.SYNTAX, op?.loc);
     }
     const value = this.tokens.shift();
     this.consumeSemicolon(
@@ -301,18 +301,15 @@ class Parser {
     );
 
     if (keyword && !this.declareVariable(identifier.value, keyword.value)) {
-      if (error === null) {
+      if (error === null && identifier) {
         error = this.addError(
-          `Variable '${identifier.value}' already declared`
-        );
+          `Variable '${identifier.value}' already declared`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
       }
     }
 
     if (!this.lookupVariable(identifier.value)) {
-      if (error === null) {
-        error = this.addError(
-          `Variable '${identifier.value}' is not declared.`
-        );
+      if (error === null && identifier) {
+        error = this.addError(`Variable '${identifier.value}' is not declared.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
       }
     }
 
@@ -325,10 +322,9 @@ class Parser {
       parsedValue &&
       !this.isValidAssignment(parsedValue, variable.type)
     ) {
-      if (error === null) {
+      if (error === null && value) {
         error = this.addError(
-          `Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`,
-          ErrorType.SEMANTIC
+          `Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`,ErrorType.SEMANTIC
         );
       }
     }
@@ -429,16 +425,10 @@ class Parser {
     if (token.type === "identifier") {
       const variable = this.lookupVariable(token.value);
       if (!variable) {
-        return this.addError(
-          `Variable '${token.value}' is not declared.`,
-          ErrorType.SEMANTIC
-        );
+        return this.addError(`Variable '${token.value}' is not declared.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
       }
       if (!variable.initialized) {
-        this.addError(
-          `Variable '${token.value}' is not initialized.`,
-          ErrorType.SEMANTIC
-        );
+        this.addError(`Variable '${token.value}' is not initialized.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
         return {
           type: "Variable",
           value: token.value,
@@ -492,15 +482,13 @@ class Parser {
 
   parseCondition() {
     if (this.tokens.length < 3) {
-      this.addError("Incomplete condition");
+      this.addError("Incomplete condition", ErrorType.SYNTAX);
       return null;
     }
     const left = this.tokens.shift();
     const operatorToken = this.tokens.shift();
     if (!this.isValidComparisonOperator(operatorToken.value)) {
-      this.addError(
-        `Invalid comparison operator '${operatorToken.value}' in condition`
-      );
+      this.addError(`Invalid comparison operator '${operatorToken.value}' in condition`, ErrorType.SYNTAX, operatorToken.loc);
     }
     const right = this.tokens.shift();
     return {
@@ -546,12 +534,12 @@ class Parser {
       } else if (this.tokens[0]?.value === ";") {
         this.tokens.shift();
       } else {
-        this.addError(`Unrecognized token in block: ${this.tokens[0]?.value}`);
+        this.addError(`Unrecognized token in block: ${this.tokens[0]?.value}`, ErrorType.SYNTAX, this.tokens[0]?.loc);
         this.tokens.shift();
       }
     }
     if (this.tokens.length === 0) {
-      this.addError("Unclosed block: Missing '}'");
+      this.addError("Unclosed block: Missing '}'", ErrorType.SYNTAX, this.tokens[0]?.loc);
     } else {
       this.tokens.shift(); // Consume '}'
     }
@@ -597,7 +585,7 @@ class Parser {
       if (this.tokens[0]?.value === ",") this.tokens.shift();
     }
     if (this.tokens.length === 0) {
-      this.addError("Unclosed method call: Missing ')'");
+      this.addError("Unclosed method call: Missing ')'", ErrorType.SYNTAX, this.tokens[0]?.loc);
       return { type: "MethodCall", object, method, arguments: args };
     }
     this.tokens.shift(); // Consume ')'
@@ -617,7 +605,7 @@ class Parser {
       this.tokens.shift();
       const body = this.parseBlock();
       if (!body) {
-        this.addError("Invalid body in do-while loop");
+        this.addError("Invalid body in do-while loop", ErrorType.SYNTAX, this.tokens[0]?.loc);
         return null;
       }
       if (!this.consumeToken("while", "Expected 'while' after do block"))
@@ -625,7 +613,7 @@ class Parser {
       if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
       const condition = this.parseCondition();
       if (!condition) {
-        this.addError("Invalid condition in do-while loop");
+        this.addError("Invalid condition in do-while loop", ErrorType.SYNTAX, this.tokens[0]?.loc);
         return null;
       }
       if (
@@ -646,7 +634,7 @@ class Parser {
         return null;
       const body = this.parseBlock();
       if (!body) {
-        this.addError("Invalid body in while loop");
+        this.addError("Invalid body in while loop", ErrorType.SYNTAX, this.tokens[0]?.loc);
         return null;
       }
       return { type: "WhileLoop", condition, body };
@@ -692,7 +680,7 @@ class Parser {
         return null;
       const body = this.parseBlock();
       if (!body) {
-        this.addError("Invalid body in for loop");
+        this.addError("Invalid body in for loop", ErrorType.SYNTAX, this.tokens[0]?.loc);
         return null;
       }
       return { type: "ForLoop", init, condition, iteration, body };
@@ -766,8 +754,7 @@ class Parser {
     this.tokens.shift(); // Consume 'switch'
     if (!this.consumeToken("(", "Expected ( after switch")) return null;
     const expression = this.parseExpression();
-    if (!this.consumeToken(")", "Expected ) after switch expression"))
-      return null;
+    if (!this.consumeToken(")", "Expected ) after switch expression")) return null;
     if (!this.consumeToken("{", "Expected { after switch")) return null;
 
     const cases = [];
@@ -790,6 +777,12 @@ class Parser {
           const stmt = this.parseStatement();
           if (stmt) body.push(stmt);
         }
+
+        // Check if the case body ends with a break statement and add a semantic error if not
+        if (body.length > 0 && body[body.length - 1]?.type !== "BreakStatement") {
+          this.addError("Expected 'break;' at the end of case", ErrorType.SEMANTIC, this.tokens[0]?.loc);
+        }
+
         cases.push({ type: "CaseClause", value, body });
       } else if (token.value === "default") {
         this.tokens.shift();
@@ -801,8 +794,10 @@ class Parser {
           if (stmt) body.push(stmt);
         }
         defaultCase = { type: "DefaultClause", body };
-      } else {
-        this.addError(`Unexpected token: ${token.value}`, ErrorType.SYNTAX);
+      } 
+      else 
+      {
+        this.addError(`Unexpected token: ${token.value}`, ErrorType.SYNTAX, token.loc);
         this.tokens.shift();
       }
     }
@@ -871,13 +866,11 @@ class Parser {
   }
 
   consumeSemicolon(errorMessage) {
-    if (
-      this.tokens.length > 0 &&
-      this.tokens[0]?.type === "punctuator" &&
-      this.tokens[0]?.value === ";"
-    ) {
+    if (this.tokens.length > 0 && this.tokens[0]?.type === "punctuator" && this.tokens[0]?.value === ";") 
+    {
       this.tokens.shift();
-    } else {
+    } 
+    else {
       this.addError(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
     }
   }
@@ -906,10 +899,7 @@ class Parser {
   declareVariable(identifier, type) {
     const currentScope = this.getCurrentScope();
     if (currentScope[identifier]) {
-      this.addError(
-        `Variable '${identifier}' already declared in this scope.`,
-        ErrorType.SEMANTIC
-      );
+      this.addError(`Variable '${identifier}' already declared in this scope.`,ErrorType.SEMANTIC);
       return false;
     }
     currentScope[identifier] = { type, initialized: false };
@@ -923,10 +913,7 @@ class Parser {
         return;
       }
     }
-    this.addError(
-      `Variable '${identifier}' is not declared.`,
-      ErrorType.SEMANTIC
-    );
+    this.addError(`Variable '${identifier}' is not declared.`,ErrorType.SEMANTIC);
   }
 
   lookupVariable(identifier) {
@@ -938,7 +925,7 @@ class Parser {
     return null; // Variable not found
   }
 
-  addError(message, type = ErrorType.SEMANTIC) {
+  addError(message, type) {
     this.errors.push({ message, type });
   }
 
