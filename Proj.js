@@ -39,8 +39,16 @@ function analyzeAndParse(x) {
 
   for (let i = 0; i < x.length; i++) {
     let ch = x.charAt(i);
-    if (ch === '"') {
-      q = !q;
+    if (ch === '"' || ch === "'") {
+      if (q) {
+        if (x.charAt(i - 1) !== "\\") {
+          q = !q;
+        }
+      } 
+      else 
+      {
+        q = !q;
+      }
       if (!q) {
         const lit = x.substring(p, i + 1);
         literals[markers.litMarker++] = lit;
