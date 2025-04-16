@@ -428,7 +428,13 @@ class Parser {
       return { error: `Invalid constant: ${token.value}` };
     }
     if (token.type === "literal") {
-      return { type: "Literal", value: token.value, dataType: "String" };
+      if (token.value.startsWith('"') && token.value.endsWith('"')) {
+        return { type: "Literal", value: token.value, dataType: "String" };
+      } else if (token.value.startsWith("'") && token.value.endsWith("'") && token.value.length === 3) {
+        return { type: "Literal", value: token.value.charAt(1), dataType: "char" }; // Extract the character
+      } else {
+        return { error: `Invalid literal: ${token.value}` };
+      }
     }
     if (token.type === "identifier") {
       const variable = this.lookupVariable(token.value);
