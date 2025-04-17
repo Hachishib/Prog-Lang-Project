@@ -95,6 +95,7 @@ body {
   padding: 10px;
   height: 820px;
   overflow: auto;
+  font-size: 12px;
 }
 
 .ast-container {
