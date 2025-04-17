@@ -89,3 +89,12 @@ body {
   border: 1px solid red;
   cursor: pointer;
 }
+
+.ast-box,
+.error-box {
+  /*   Error and ASt box   */
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 200px;
+  overflow: auto;
+}
