@@ -1,21 +1,23 @@
-// Updated Proj.js for browser
-document.addEventListener("DOMContentLoaded", function () {
-  // REMOVED NODE.JS READLINE STUFF
+const ErrorType = { SYNTAX: "syntax", SEMANTIC: "semantic" };
 
-  // Get references to HTML elements
-  // Function to display output in the HTML textarea
+document.addEventListener("DOMContentLoaded", function () {
+  const inputWrite = document.getElementById("inputWrite");
+  const outputWrite = document.getElementById("outputWrite");
+  const astOutput = document.getElementById("astOutput");
+  const errorOutput = document.getElementById("errorOutput");
+  const convertButton = document.querySelector(".convert-button");
+
+  // Display functions
   function displayOutput(output) {
     outputWrite.value = output;
   }
 
-  // Function to display AST in the HTML pre
   function displayAST(ast) {
     astOutput.textContent = JSON.stringify(ast, null, 2);
   }
 
-  // Function to display errors in the HTML div
   function displayErrors(errors) {
-    errorOutput.innerHTML = ""; // Clear previous errors
+    errorOutput.innerHTML = ""; //
     if (Array.isArray(errors)) {
       errors.forEach((error) => {
         const errorElement = document.createElement("p");
@@ -28,129 +30,119 @@ document.addEventListener("DOMContentLoaded", function () {
       errorOutput.appendChild(errorElement);
     }
   }
-});
 
-// Get references to HTML elements
-const inputWrite = document.getElementById("inputWrite");
-const outputWrite = document.getElementById("outputWrite");
-const astOutput = document.getElementById("astOutput");
-const errorOutput = document.getElementById("errorOutput");
-const convertButton = document.querySelector(".convert-button");
-
-// Function to display output in the HTML textarea
-function displayOutput(output) {
-  outputWrite.value = output;
-}
-
-// Function to display AST in the HTML pre
-function displayAST(ast) {
-  astOutput.textContent = JSON.stringify(ast, null, 2);
-}
-
-// Function to display errors in the HTML div
-function displayErrors(errors) {
-  errorOutput.innerHTML = ""; // Clear previous errors
-  if (Array.isArray(errors)) {
-    errors.forEach((error) => {
-      const errorElement = document.createElement("p");
-      errorElement.textContent = error;
-      errorOutput.appendChild(errorElement);
-    });
-  } else if (errors) {
-    // If it's a single error string
-    const errorElement = document.createElement("p");
-    errorElement.textContent = errors;
-    errorOutput.appendChild(errorElement);
-  }
-}
-
-convertButton.addEventListener("click", () => {
-  const x = inputWrite.value; // Get code from textarea
-  let operators = new Array(x.length);
-  let constants = new Array(x.length);
-  let punctuators = new Array(x.length);
-  let keywords = new Array(x.length);
-  let identifiers = new Array(x.length);
-  let literals = new Array(x.length);
-  let tokens = []; // Added for parser
-
-  let opMarker = 0,
-    consMarker = 0,
-    puncMarker = 0,
-    keyMarker = 0,
-    idMarker = 0,
-    litMarker = 0;
-  let p = 0;
-  let q = false;
-
-  for (let i = 0; i < x.length; i++) {
-    let ch = x.charAt(i);
-    if (ch === '"') {
-      q = !q;
-      if (!q) {
-        const lit = x.substring(p, i + 1);
-        literals[litMarker++] = lit;
-        tokens.push({ type: "literal", value: lit }); // Add to tokens for parser
-        p = i + 1;
-      } else {
-        p = i;
-      }
-      continue;
-    }
-
-    if (!q && (isWhitespace(ch) || isPunctuation(x, i) || isOperatorChar(ch))) {
-      if (p !== i) {
-        let token = x.substring(p, i);
-        if (isKeyword(token)) {
-          keywords[keyMarker++] = token;
-          tokens.push({ type: "keyword", value: token }); // Add to tokens for parser
-        } else if (isConstant(token)) {
-          constants[consMarker++] = token;
-          tokens.push({ type: "constant", value: token }); // Add to tokens for parser
-        } else {
-          identifiers[idMarker++] = token;
-          tokens.push({ type: "identifier", value: token }); // Add to tokens for parser
-        }
-      }
-
-      if (isPunctuation(x, i)) {
-        punctuators[puncMarker++] = String(ch);
-        tokens.push({ type: "punctuator", value: ch }); // Add to tokens for parser
-        p = i + 1;
-      } else if (i < x.length - 1) {
-        let op2 = x.substring(i, i + 2);
-        if (isOperator(op2)) {
-          operators[opMarker++] = op2;
-          tokens.push({ type: "operator", value: op2 }); // Add to tokens for parser
-          i++;
-        } else {
-          operators[opMarker++] = String(ch);
-          tokens.push({ type: "operator", value: ch }); // Add to tokens for parser
-        }
-        p = i + 1;
-      } else {
-        operators[opMarker++] = String(ch);
-        tokens.push({ type: "operator", value: ch });
-        // Add to tokens for parser
-        p = i + 1;
-      }
-    }
+  function display(label, array, count) {
+    return `${label}: ${array.slice(0, count).join(", ")}\n`;
   }
 
-  let lexicalOutput = "" + "\n";
-  lexicalOutput += display("Keywords\t", keywords, keyMarker);
-  lexicalOutput += display("Identifiers\t", identifiers, idMarker);
-  lexicalOutput += display("Operators\t", operators, opMarker);
-  lexicalOutput += display("Constants\t", constants, consMarker);
-  lexicalOutput += display("Punctuators\t", punctuators, puncMarker);
-  lexicalOutput += display("Literals\t", literals, litMarker) + "\n";
-  lexicalOutput += "" + "\n";
+  convertButton.addEventListener("click", () => {
+    outputWrite.value = "";
+    astOutput.textContent = "";
+    errorOutput.innerHTML = "";
+    const code = inputWrite.value;
 
-  displayOutput(lexicalOutput);
+    let operators = [];
+    let constants = [];
+    let punctuators = [];
+    let keywords = [];
+    let identifiers = [];
+    let literals = [];
+    let tokens = [];
 
-  if (!isCorrect(x)) {
-    displayErrors("ERROR!");
-  } else {
+    let markers = {
+      opMarker: 0,
+      consMarker: 0,
+      puncMarker: 0,
+      keyMarker: 0,
+      idMarker: 0,
+      litMarker: 0,
+    };
+
+    let p = 0;
+    let q = false;
+
+    for (let i = 0; i < code.length; i++) {
+      let ch = code.charAt(i);
+      if (ch === '"') {
+        q = !q;
+        if (!q) {
+          const lit = code.substring(p, i + 1);
+          literals[markers.litMarker++] = lit;
+          tokens.push({ type: "literal", value: lit });
+          p = i + 1;
+        } else {
+          p = i;
+        }
+        continue;
+      }
+
+      if (
+        !q &&
+        (isWhitespace(ch) || isPunctuation(code, i) || isOperatorChar(ch))
+      ) {
+        if (p !== i) {
+          let token = code.substring(p, i);
+          if (isKeyword(token)) {
+            keywords[markers.keyMarker++] = token;
+            tokens.push({ type: "keyword", value: token });
+          } else if (isConstant(token)) {
+            constants[markers.consMarker++] = token;
+            tokens.push({ type: "constant", value: token });
+          } else {
+            identifiers[markers.idMarker++] = token;
+            tokens.push({ type: "identifier", value: token });
+          }
+        }
+
+        if (isPunctuation(code, i)) {
+          punctuators[markers.puncMarker++] = ch;
+          tokens.push({ type: "punctuator", value: ch });
+          p = i + 1;
+        } else if (i < code.length - 1) {
+          let op2 = code.substring(i, i + 2);
+          if (isOperator(op2)) {
+            operators[markers.opMarker++] = op2;
+            tokens.push({ type: "operator", value: op2 });
+            i++;
+          } else {
+            operators[markers.opMarker++] = ch;
+            tokens.push({ type: "operator", value: ch });
+          }
+          p = i + 1;
+        } else {
+          operators[markers.opMarker++] = ch;
+          tokens.push({ type: "operator", value: ch });
+          p = i + 1;
+        }
+      }
+    }
+
+    if (p < code.length && !q) {
+      processToken(
+        code,
+        p,
+        code.length,
+        keywords,
+        constants,
+        identifiers,
+        tokens,
+        markers
+      );
+    }
+
+    let lexicalOutput =
+      "_______________________________________________________________\n";
+    lexicalOutput += display("Keywords\t", keywords, markers.keyMarker);
+    lexicalOutput += display("Identifiers\t", identifiers, markers.idMarker);
+    lexicalOutput += display("Operators\t", operators, markers.opMarker);
+    lexicalOutput += display("Constants\t", constants, markers.consMarker);
+    lexicalOutput += display("Punctuators\t", punctuators, markers.puncMarker);
+    lexicalOutput += display("Literals\t", literals, markers.litMarker) + "\n";
+    lexicalOutput +=
+      "_______________________________________________________________\n";
+
+    displayOutput(lexicalOutput);
+
     const filteredTokens = tokens.filter(
       (token) => token.value.trim() !== "" && token.value !== ";"
     );
@@ -159,784 +151,917 @@ convertButton.addEventListener("click", () => {
 
     displayAST(ast);
     displayErrors(errors);
-  }
-});
+  });
 
-function display(name, arr, mark) {
-  let output = name + ": ";
-  for (let i = 0; i < mark; i++) {
-    if (arr[i] === null) continue;
-    let repeated = 0;
-    for (let j = 0; j < i; j++) {
-      if (arr[i] === arr[j]) {
-        repeated = 1;
-        break;
+  // Helper functions
+  function processToken(
+    code,
+    start,
+    end,
+    keywords,
+    constants,
+    identifiers,
+    tokens,
+    markers
+  ) {
+    if (start !== end) {
+      let token = code.substring(start, end);
+      if (isKeyword(token)) {
+        keywords[markers.keyMarker++] = token;
+        tokens.push({ type: "keyword", value: token });
+      } else if (isConstant(token)) {
+        constants[markers.consMarker++] = token;
+        tokens.push({ type: "constant", value: token });
+      } else if (token.trim() !== "") {
+        identifiers[markers.idMarker++] = token;
+        tokens.push({ type: "identifier", value: token });
       }
     }
-    if (repeated === 0) {
-      output += arr[i] + "  ";
-    }
   }
-  return output + "\n";
-}
-
-function isKeyword(key) {
-  const keywords = [
-    "boolean",
-    "break",
-    "case",
-    "char",
-    "class",
-    "default",
-    "do",
-    "else",
-    "float",
-    "for",
-    "if",
-    "import",
-    "int",
-    "new",
-    "private",
-    "public",
-    "return",
-    "static",
-    "switch",
-    "void",
-    "while",
-    "String",
-    "length",
-    "continue",
-  ];
-  for (let keyword of keywords) {
-    if (key === keyword) {
-      return true;
-    }
+  function isKeyword(key) {
+    const keywords = [
+      "boolean",
+      "break",
+      "case",
+      "char",
+      "class",
+      "default",
+      "do",
+      "else",
+      "float",
+      "for",
+      "if",
+      "import",
+      "int",
+      "new",
+      "private",
+      "public",
+      "return",
+      "static",
+      "switch",
+      "void",
+      "while",
+      "String",
+      "length",
+      "continue",
+    ];
+    return keywords.includes(key);
   }
-  return false;
-}
-
-function isConstant(cons) {
-  return isInteger(cons) || isFloat(cons);
-}
-
-function isInteger(str) {
-  if (str.length === 0) return false;
-  for (let ch of str) {
-    if (!isDigit(ch)) {
-      return false;
-    }
+  function isConstant(cons) {
+    return isInteger(cons) || isFloat(cons);
   }
-  return true;
-}
 
-function isFloat(str) {
-  let point = 0;
-  if (str.length === 0) return false;
-  for (let ch of str) {
+  function isInteger(str) {
+    return /^\d+$/.test(str);
+  }
+
+  function isFloat(str) {
+    return /^\d+\.\d+$/.test(str);
+  }
+
+  function isOperator(op) {
+    const operators = [
+      "+",
+      "-",
+      "*",
+      "/",
+      "%",
+      "=",
+      "<",
+      ">",
+      "!",
+      "++",
+      "--",
+      "+=",
+      "-=",
+      "*=",
+      "/=",
+      ">=",
+      "<=",
+      "==",
+      "!=",
+      "||",
+      "&&",
+    ];
+    return operators.includes(op);
+  }
+
+  function display(name, arr, mark) {
+    let output = name + ": ";
+    const unique = [...new Set(arr.slice(0, mark).filter(Boolean))];
+    return output + unique.join(", ") + "\n";
+  }
+
+  function isOperatorChar(ch) {
+    return "+-*/=%<>!&|".includes(ch);
+  }
+
+  function isPunctuation(code, index) {
+    const ch = code.charAt(index);
+    const punctuators = ";,!?[]{}()";
+    if (punctuators.includes(ch)) return true;
+
     if (ch === ".") {
-      if (point === 1) return false;
-      point = 1;
-    } else if (!isDigit(ch)) {
-      return false;
-    }
-  }
-  return point === 1;
-}
-
-function isOperator(op) {
-  const operators = [
-    "+",
-    "-",
-    "*",
-    "/",
-    "%",
-    "=",
-    "<",
-    ">",
-    "!",
-    "++",
-    "--",
-    "+=",
-    "-=",
-    "*=",
-    "/=",
-    ">=",
-    "<=",
-    "==",
-    "!=",
-    "||",
-    "&&",
-  ];
-  for (let operator of operators) {
-    if (op === operator) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isOperatorChar(ch) {
-  return "+-*/=%<>!&|".indexOf(ch) !== -1;
-}
-
-function isPunctuation(code, index) {
-  let ch = code.charAt(index);
-
-  const punctuators = ";,!?[]{}()";
-  if (punctuators.indexOf(ch) !== -1) {
-    return true;
-  }
-
-  if (ch === ".") {
-    if (index > 0 && index < code.length - 1) {
-      if (isDigit(code.charAt(index - 1)) && isDigit(code.charAt(index + 1))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
-}
-
-function isCorrect(code) {
-  let brackets = 0,
-    parentheses = 0;
-  let inside = false;
-  let last = "\0";
-
-  for (let i = 0; i < code.length; i++) {
-    let ch = code.charAt(i);
-    if (!isWhitespace(ch)) {
-      last = ch;
-    }
-
-    if (ch === '"') {
-      inside = !inside;
-    }
-
-    if (!inside) {
-      if (ch === "{") brackets++;
-      if (ch === "}") brackets--;
-      if (ch === "(") parentheses++;
-      if (ch === ")") parentheses--;
-
-      if (brackets < 0 || parentheses < 0) {
-        return false;
-      }
-    }
-  }
-
-  return (
-    (last === "}" || last === ";") &&
-    brackets === 0 &&
-    parentheses === 0 &&
-    !inside
-  );
-}
-
-// Helper functions to replace Java's Character methods
-function isWhitespace(ch) {
-  return /\s/.test(ch);
-}
-
-function isDigit(ch) {
-  return /^\d$/.test(ch);
-}
-
-// Parser class from the second code
-class Parser {
-  constructor(tokens) {
-    this.tokens = Array.isArray(tokens)
-      ? tokens.filter((token) => token.value.trim() !== "")
-      : [];
-    this.symbolTable = {};
-    this.errors = [];
-  }
-
-  parse() {
-    const ast = [];
-
-    while (this.tokens.length > 0) {
-      // Change arrangement lang and inalis na yung isForLoop methods and such and dito na check agad
-      if (this.tokens[0].value === "do") {
-        const doWhileLoop = this.parseLoop("do");
-        if (doWhileLoop.error) {
-          this.errors.push(doWhileLoop.error);
-        } else {
-          ast.push(doWhileLoop);
-        }
-      } else if (this.tokens[0].value === "while") {
-        const whileLoop = this.parseLoop("while");
-        if (whileLoop.error) {
-          this.errors.push(whileLoop.error);
-        } else {
-          ast.push(whileLoop);
-        }
-      } else if (this.tokens[0].value === "for") {
-        const forLoop = this.parseLoop("for");
-        if (forLoop.error) {
-          this.errors.push(forLoop.error);
-        } else {
-          ast.push(forLoop);
-        }
-      }
-      // ayan
-      else if (this.tokens.length >= 3 && this.isAssignment(this.tokens)) {
-        const assignment = this.parseAssignment();
-        if (assignment.error) {
-          this.errors.push(assignment.error);
-        } else {
-          ast.push(assignment);
-        }
-      } else if (this.tokens.length > 0) {
-        //
-        const expression = this.parseExpression();
-        if (expression.error) {
-          this.errors.push(expression.error);
-        } else {
-          ast.push(expression);
-        }
-      } else {
-        this.errors.push(
-          `Unprocessed tokens remaining: ${this.tokens
-            .map((t) => t.value)
-            .join(" ")}`
-        );
-        break;
-      }
-    }
-
-    return { ast, errors: this.errors };
-  }
-
-  parseLoop(typeOfLoop) {
-    if (typeOfLoop === "do") {
-      this.tokens.shift();
-      // Remove 'do'
-      //parse body
-      const body = this.parseBody();
-      if (body.error) {
-        return { error: body.error };
-      }
-
-      // Check if the next token is 'while'
-      if (this.tokens.length < 3 || this.tokens[0].value !== "while") {
-        return { error: "Expected 'while' after do block" };
-      }
-
-      this.tokens.shift(); // Remove 'while'
-
-      if (this.tokens[0].value !== "(") {
-        return { error: "Expected '(' after 'while'" };
-      }
-
-      this.tokens.shift(); // Remove '('
-      //parse condition
-      let condition;
-      if (this.tokens.length > 0 && this.tokens[0].value !== ")") {
-        condition = this.parseExpression();
-      } else {
-        condition = { type: "EmptyStatement" };
-      }
-
-      // Check ')'
-      if (this.tokens.length === 0 || this.tokens[0].value !== ")") {
-        return { error: "Expected ')' after condition in do-while loop" };
-      }
-
-      this.tokens.shift(); // Remove ')'
-
-      if (this.tokens.length > 0 && this.tokens[0].value === ";") {
-        //no error message
-        this.tokens.shift();
-      }
-
-      return {
-        type: "DoWhileLoop",
-        condition,
-        body,
-      };
-    } else if (typeOfLoop === "for") {
-      this.tokens.shift();
-      // Remove 'for'
-
-      if (this.tokens.length === 0 || this.tokens[0].value !== "(") {
-        //new: for "("
-        return { error: "Expected '(' after 'for'" };
-      }
-
-      this.tokens.shift(); //'('
-
-      // Parse initialization (handle both 'let', 'var', 'const', and assignments)
-      let init;
-      if (this.tokens.length >= 3 && this.isAssignment(this.tokens)) {
-        init = this.parseAssignment();
-      } else if (
-        this.tokens.length >= 3 &&
-        (this.tokens[0].value === "let" ||
-          this.tokens[0].value === "var" ||
-          this.tokens[0].value === "const" ||
-          this.tokens[0].type === "keyword")
-      ) {
-        init = this.parseDeclaration();
-      } else {
-        init = { type: "EmptyStatement" };
-      }
-
-      // Parse condition
-      let condition;
-      if (this.tokens.length > 0 && this.tokens[0].value !== ";") {
-        condition = this.parseExpression();
-      } else {
-        condition = { type: "EmptyStatement" };
-      }
-
-      if (this.tokens.length > 0 && this.tokens[0].value === ";") {
-        this.tokens.shift();
-      }
-
-      // Parse increment = hirap
-      let iteration;
-      if (this.tokens.length > 0 && this.tokens[0].value !== ")") {
-        // for postfix
-        if (
-          this.tokens.length >= 2 &&
-          this.tokens[0].type === "identifier" &&
-          ["++", "--"].includes(this.tokens[1].value)
-        ) {
-          iteration = this.parseIteration();
-        }
-        //for prefix
-        else if (
-          this.tokens.length >= 2 &&
-          ["++", "--"].includes(this.tokens[0].value) &&
-          this.tokens[1].type === "identifier"
-        ) {
-          iteration = this.parseIteration();
-        } else if (
-          this.tokens.length >= 3 &&
-          this.tokens[0].type === "identifier" &&
-          this.tokens[1].type === "operator" &&
-          (this.tokens[1].value === "+=" || this.tokens[1].value === "-=")
-        ) {
-          iteration = this.parseCompoundAssignment();
-        } else {
-          iteration = this.parseExpression();
-        }
-      } else {
-        iteration = { type: "EmptyStatement" };
-      }
-
-      if (this.tokens.length === 0 || this.tokens[0].value !== ")") {
-        return { error: "Expected ')' after for loop parts" };
-      }
-      this.tokens.shift(); // Remove ')'
-
-      // Parse body
-      const body = this.parseBody();
-      if (body.error) {
-        return { error: body.error };
-      }
-
-      return {
-        type: "ForLoop",
-        init,
-        condition,
-        iteration,
-        body,
-      };
-    } else if (typeOfLoop === "while") {
-      this.tokens.shift();
-      // Remove 'while'
-
-      if (this.tokens.length === 0 || this.tokens[0].value !== "(") {
-        return { error: "Expected '(' after 'while'" };
-      }
-
-      this.tokens.shift(); // Remove '('
-
-      // Parse condition
-      let condition;
-      if (this.tokens.length > 0 && this.tokens[0].value !== ")") {
-        condition = this.parseExpression();
-      } else {
-        condition = { type: "EmptyStatement" };
-      }
-
-      if (this.tokens.length === 0 || this.tokens[0].value !== ")") {
-        return { error: "Expected ')' after condition in while loop" };
-      }
-
-      this.tokens.shift(); // Remove ')'
-
-      // Parse body
-      const body = this.parseBody();
-      if (body.error) {
-        return { error: body.error };
-      }
-
-      return {
-        type: "WhileLoop",
-        condition,
-        body,
-      };
-    }
-    return { error: `Invalid loop type '${typeOfLoop}'` };
-  }
-
-  // Handle variable assignment like 'int a = 10'
-  parseAssignment() {
-    const keyword = this.tokens.shift();
-    // e.g., 'int'
-    const identifier = this.tokens.shift(); // e.g., 'a'
-    const op = this.tokens.shift();
-    // e.g., '='
-
-    if (op.type !== "operator" || op.value !== "=") {
-      return { error: `Invalid assignment syntax near '${op.value}'` };
-    }
-
-    const value = this.tokens.shift();
-
-    // Check if the variable is already declared
-    if (this.symbolTable[identifier.value]) {
-      return {
-        error: `Error: Variable '${identifier.value}' is already declared.`,
-      };
-    }
-
-    // Check type correctness
-    if (!this.isValidAssignment(value, keyword.value)) {
-      return {
-        error: `Error: Type mismatch.
-          Cannot assign ${value.value} to '${keyword.value} ${identifier.value}'`,
-      };
-    }
-
-    // Add to symbol table if valid
-    this.symbolTable[identifier.value] = { type: keyword.value };
-    return {
-      type: "Assignment",
-      keyword: keyword.value,
-      identifier: identifier.value,
-      value: this.parseLiteralOrExpression(value),
-    };
-  }
-
-  // bago: Parse compound assignment (+=, -=)
-  parseCompoundAssignment() {
-    if (this.tokens.length < 3) {
-      return { error: "Invalid compound assignment syntax" };
-    }
-
-    const identifier = this.tokens.shift(); // e.g., 'i'
-    const operator = this.tokens.shift();
-    // e.g., '+='
-    const value = this.tokens.shift();
-    // e.g., '1'
-
-    return {
-      type: "CompoundAssignment",
-      identifier: this.parseLiteralOrExpression(identifier),
-      operator,
-      value: this.parseLiteralOrExpression(value),
-    };
-  }
-
-  // Validate type of assigned value
-  isValidAssignment(value, expectedType) {
-    if (expectedType === "int" && isInteger(value.value)) {
-      return true;
-    }
-    if (expectedType === "float" && isFloat(value.value)) {
-      return true;
-    }
-    if (expectedType === "String" && value.type === "literal") {
-      return true;
+      return !(
+        index > 0 &&
+        index < code.length - 1 &&
+        isDigit(code.charAt(index - 1)) &&
+        isDigit(code.charAt(index + 1))
+      );
     }
     return false;
   }
 
-  parseLiteralOrExpression(token) {
-    if (!token) {
-      //error check
-      return { error: "Missing token in expression" };
+  function isWhitespace(ch) {
+    return /\s/.test(ch);
+  }
+
+  function isDigit(ch) {
+    return /^\d$/.test(ch);
+  }
+
+  class Parser {
+    constructor(tokens) {
+      this.tokens = tokens.filter((token) => token.value.trim() !== "");
+      this.symbolTable = [{}];
+      this.errors = [];
     }
 
-    if (token.type === "constant" || token.type === "literal") {
-      return {
-        type: "Literal",
-        value: token.value,
+    parse() {
+      const ast = [];
+      while (this.tokens.length > 0) {
+        const statement = this.parseStatement();
+        if (statement) {
+          if (statement.error) {
+            this.errors.push(statement.error);
+          }
+          ast.push(statement);
+        } else {
+          // If parseStatement returns null, it usually indicates an error
+          // or end of input. We might want to add error handling here.
+          if (this.tokens.length > 0) {
+            this.errors.push(`Unrecognized token: ${this.tokens[0]?.value}`);
+            this.tokens.shift();
+          }
+        }
+      }
+      return { ast, errors: this.errors };
+    }
+
+    // Helper functions for parsing
+    parseAssignment() {
+      let keyword;
+      if (this.tokens[0]?.type === "keyword") {
+        keyword = this.tokens.shift();
+      }
+      const identifier = this.tokens.shift();
+      const op = this.tokens.shift();
+      let error = null;
+
+      // Syntax error for incorrect operator
+      if (op?.value !== "=") {
+        this.errors.push = this.errors.push(
+          `Invalid assignment syntax near '${op?.value}'`,
+          ErrorType.SYNTAX
+        );
+      }
+
+      const value = this.tokens.shift();
+      this.consumeSemicolon(
+        `Missing semicolon after assignment of '${identifier.value}'`
+      );
+
+      // Semantic error for duplicate declaration
+      if (keyword && !this.declareVariable(identifier.value, keyword.value)) {
+        if (!error) {
+          this.errors.push(
+            `Variable '${identifier.value}' already declared`,
+            ErrorType.SEMANTIC
+          );
+        }
+      }
+
+      // Semantic error for undeclared variable
+      if (!this.lookupVariable(identifier.value)) {
+        if (!error) {
+          error = this.errors.push(
+            `Variable '${identifier.value}' is not declared`,
+            ErrorType.SEMANTIC
+          );
+        }
+      }
+
+      const variable = this.lookupVariable(identifier.value);
+      const parsedValue = this.parseLiteralOrExpression(value);
+
+      // Semantic error for type mismatch
+      if (
+        variable &&
+        parsedValue &&
+        !this.isValidAssignment(parsedValue, variable.type)
+      ) {
+        if (!error) {
+          error = this.errors.push(
+            `Type mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`,
+            ErrorType.SEMANTIC
+          );
+        }
+      }
+
+      this.assignVariable(identifier.value);
+      const assignmentNode = {
+        type: "Assignment",
+        keyword: keyword?.value,
+        identifier: identifier.value,
+        value: parsedValue,
       };
-    } else if (token.type === "identifier") {
-      //if (!this.symbolTable[token.value]) {
-      //this.errors.push(`Error: Undeclared variable '${token.value}'`);
-      //return {error: `Undeclared variable '${token.value}'`};
-      //}
-      //ganto muna kasi di pede int i < 6 sa condition ng do while at while kaya pag complete
-      //na may initialization outside lang loop pede
 
-      return {
-        type: "Variable",
-        value: token.value,
-      };
-    }
-    return { error: `Unexpected token '${token.value}'` };
-  }
+      if (error) {
+        this.errors.push(error); // Add the error to parser's error collection
+        assignmentNode.error = error.message;
+      }
 
-  // Check if the current tokens match an assignment pattern
-  isAssignment(tokens) {
-    return (
-      tokens.length >= 3 &&
-      (tokens[0].type === "keyword" || tokens[0].type === "identifier") &&
-      tokens[1].type === "identifier" &&
-      tokens[2].type === "operator" &&
-      tokens[2].value === "="
-    );
-  }
-
-  parseDeclaration() {
-    // BAgo for For loop for line
-    const type = this.tokens.shift().value;
-    // 'int'
-    const name = this.tokens.shift().value; // 'i'
-
-    if (this.tokens[0]?.value !== "=") {
-      return { error: "Expected '=' in variable declaration" };
-    }
-    this.tokens.shift(); // Remove '='
-
-    const value = this.parseExpression();
-    if (this.tokens[0]?.value === ";") {
-      this.tokens.shift(); // Optional: remove ';'
-      // if outside a for-loop
+      return assignmentNode;
     }
 
-    // Add to symbol table
-    this.symbolTable[name] = { type: "variable", value };
-    return {
-      type: "VariableDeclaration",
-      dataType: type,
-      name,
-      value,
-    };
-  }
+    parseExpression() {
+      let left = this.parseLiteralOrExpression(this.tokens.shift());
+      if (!left) return null;
 
-  // binago: nilagyan ng check if increment/decrement
-  parseIteration() {
-    const [token1, token2] = this.tokens;
-    // i++ or i--
-    if (
-      token1?.type === "identifier" &&
-      token2?.type === "operator" &&
-      (token2.value === "++" || token2.value === "--")
-    ) {
-      this.tokens.shift();
-      // identifier
-      this.tokens.shift(); // ++ or --
-      if (token2.value === "++") {
-        return {
-          type: "Increment",
-          operator: token2.value,
-          argument: {
-            type: "Variable",
-            value: token1.value,
-          },
-          form: "postfix",
-        };
-      } else {
-        return {
-          type: "Decrement",
-          operator: token2.value,
-          argument: {
-            type: "Variable",
-            value: token1.value,
-          },
-          form: "postfix",
+      while (this.tokens.length > 0 && this.tokens[0].type === "operator") {
+        const op = this.tokens.shift();
+        const right = this.parseLiteralOrExpression(this.tokens.shift());
+        if (!right) return null;
+
+        if (op.value === "+") {
+          if (left.dataType === "String" || right.dataType === "String") {
+            // String concatenation is allowed
+            left = {
+              type: "BinaryExpression",
+              left: left,
+              operator: op.value,
+              right: right,
+              dataType: "String", // Result is a string
+            };
+            continue;
+          }
+        }
+        // all other operators
+        if (left.dataType === "String" || right.dataType === "String") {
+          this.errors.push(
+            `Bad operand '${op.value}' to be use in printing.`,
+            ErrorType.SEMANTIC
+          );
+        }
+        left = {
+          type: "BinaryExpression",
+          left: left,
+          operator: op.value,
+          right: right,
         };
       }
-    }
-
-    // ++i or --i
-    if (
-      token1?.type === "operator" &&
-      (token1.value === "++" || token1.value === "--") &&
-      token2?.type === "identifier"
-    ) {
-      this.tokens.shift();
-      // ++ or --
-      this.tokens.shift();
-      // identifier
-      if (token1.value === "++") {
-        return {
-          type: "Increment",
-          operator: token1.value,
-          argument: {
-            type: "Variable",
-            value: token2.value,
-          },
-          form: "prefix",
-        };
-      } else {
-        return {
-          type: "Decrement",
-          operator: token1.value,
-          argument: {
-            type: "Variable",
-            value: token2.value,
-          },
-          form: "prefix",
-        };
-      }
-    }
-
-    this.errors.push(`Unexpected token '${token1?.value}' in increment`);
-    return {
-      error: `Unexpected token '${token1?.value}'`,
-    };
-  }
-
-  // Parse expressions (e.g., a + b or a + 5)
-  parseExpression() {
-    // Dito nabago
-    if (this.tokens.length === 0) {
-      return { error: "Unexpected end of tokens in expression" };
-      // Here Nabago Cheeck lang kung yung tokebn is Expressio is complete :)
-    }
-
-    // Check for ++ or -- first
-    if (
-      this.tokens.length >= 2 &&
-      this.tokens[0].type === "identifier" &&
-      (this.tokens[1].value === "++" || this.tokens[1].value === "--")
-    ) {
-      return this.parseIteration();
-    }
-
-    // New: compound assignments like i += 2
-    if (
-      this.tokens.length >= 3 &&
-      this.tokens[0].type === "identifier" &&
-      this.tokens[1].type === "operator" &&
-      (this.tokens[1].value === "+=" || this.tokens[1].value === "-=")
-    ) {
-      return this.parseCompoundAssignment();
-    }
-
-    const leftToken = this.tokens.shift();
-    const left = this.parseLiteralOrExpression(leftToken);
-    if (left.error) {
       return left;
     }
 
-    if (this.tokens.length >= 1 && this.tokens[0].type === "operator") {
-      const opToken = this.tokens.shift();
+    parseDeclaration() {
+      const keyword = this.tokens.shift();
+      const identifier = this.tokens.shift();
+
+      // Consume up to semicolon
+      if (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
+        this.errors.push(
+          `Unexpected token after declaration of '${identifier.value}'`,
+          ErrorType.SEMANTIC
+        );
+        while (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
+          this.tokens.shift();
+        }
+      }
+      this.consumeSemicolon(
+        `Missing semicolon after declaration of '${identifier.value}'`
+      );
+
+      if (!this.declareVariable(identifier.value, keyword.value)) {
+        this.errors.push(
+          `Variable '${identifier.value}' already declared`,
+          ErrorType.SEMANTIC
+        );
+        return null; // Just return null after adding error
+      }
+
+      return {
+        type: "Declaration",
+        keyword: keyword.value,
+        identifier: identifier.value,
+      };
+    }
+
+    parseLiteralOrExpression(token) {
+      if (!token) {
+        this.errors.push("Missing token in expression", ErrorType.SYNTAX);
+        return null;
+      }
+      if (token.type === "constant") {
+        if (isInteger(token.value))
+          return { type: "Literal", value: token.value, dataType: "int" };
+        if (isFloat(token.value))
+          return { type: "Literal", value: token.value, dataType: "float" };
+        return { error: `Invalid constant: ${token.value}` };
+      }
+      if (token.type === "literal") {
+        return { type: "Literal", value: token.value, dataType: "String" };
+      }
+      if (token.type === "identifier") {
+        const variable = this.lookupVariable(token.value);
+        if (!variable) {
+          return this.errors.push(
+            `Variable '${token.value}' is not declared.`,
+            ErrorType.SEMANTIC
+          );
+        }
+        if (!variable.initialized) {
+          this.errors.push(
+            `Variable '${token.value}' is not initialized.`,
+            ErrorType.SEMANTIC
+          );
+          return {
+            type: "Variable",
+            value: token.value,
+            dataType: variable.type,
+          };
+        }
+        return {
+          type: "Variable",
+          value: token.value,
+          dataType: variable.type,
+        };
+      }
+    }
+
+    parseIfStatement() {
+      if (!this.isIfKeyword(this.tokens[0])) {
+        return null;
+      }
+      this.tokens.shift(); // Consume 'if'
+      if (!this.consumeToken("(", "Expected '(' after 'if'")) {
+        return null;
+      }
+      const condition = this.parseCondition();
+      if (!this.consumeToken(")", "Expected ')' after condition")) {
+        return null;
+      }
+      const thenBranch = this.parseBlock();
+      if (!thenBranch) {
+        return null;
+      }
+
+      const ifNode = { type: "IfStatement", condition, thenBranch };
+      let elseIfBranches = [];
+
+      while (this.tokens[0]?.value === "else") {
+        this.tokens.shift(); // Consume 'else'
+        if (this.isIfKeyword(this.tokens[0])) {
+          const elseIfNode = this.parseIfStatement();
+          if (elseIfNode) {
+            elseIfBranches.push(elseIfNode);
+          }
+        } else {
+          const elseBlock = this.parseBlock();
+          if (elseBlock) {
+            ifNode.elseBranch = elseBlock;
+          }
+          break;
+        }
+      }
+      if (elseIfBranches.length > 0) {
+        ifNode.elseIfBranches = elseIfBranches;
+      }
+      return ifNode;
+    }
+
+    parseCondition() {
+      if (this.tokens.length < 3) {
+        this.errors.push("Incomplete condition", ErrorType.SYNTAX);
+        return null;
+      }
+
+      const left = this.tokens.shift();
+      const operatorToken = this.tokens.shift();
+      if (!this.isValidComparisonOperator(operatorToken.value)) {
+        this.errors.push(
+          `Invalid comparison operator '${operatorToken.value}' in condition`
+        );
+      }
+      const right = this.tokens.shift();
+      return {
+        type: "Condition",
+        left: this.parseLiteralOrExpression(left),
+        operator: operatorToken.value,
+        right: this.parseLiteralOrExpression(right),
+      };
+    }
+
+    parseBlock() {
+      if (!this.consumeToken("{", "Expected '{'")) return null;
+      this.pushScope();
+      const statements = [];
+      while (this.tokens.length > 0 && this.tokens[0]?.value !== "}") {
+        if (this.isLoopKeyword(this.tokens[0])) {
+          const loopStatement = this.parseLoop(this.tokens[0].value);
+          this.handleParsedStatement(
+            loopStatement,
+            `Failed to parse ${this.tokens[0].value} loop`,
+            statements
+          );
+        } else if (this.isAssignment(this.tokens)) {
+          const assignment = this.parseAssignment();
+          this.handleParsedStatement(
+            assignment,
+            `Invalid assignment`,
+            statements
+          );
+        } else if (this.isIfKeyword(this.tokens[0])) {
+          const ifStatement = this.parseIfStatement();
+          this.handleParsedStatement(
+            ifStatement,
+            `Failed to parse if statement`,
+            statements
+          );
+        } else if (this.isMethodCall(this.tokens)) {
+          const methodCall = this.parseMethodCall();
+          if (methodCall) statements.push(methodCall);
+        } else if (this.tokens.length >= 3) {
+          const expr = this.parseExpression();
+          this.handleParsedStatement(expr, `Invalid expression`, statements);
+        } else if (this.tokens[0]?.value === ";") {
+          this.tokens.shift();
+        } else {
+          this.errors.push(
+            `Unrecognized token in block: ${this.tokens[0]?.value}`
+          );
+          this.tokens.shift();
+        }
+      }
       if (this.tokens.length === 0) {
-        return {
-          error: `Missing right operand after operator '${opToken.value}'`,
-        };
+        this.errors.push("Unclosed block: Missing '}'");
+      } else {
+        this.tokens.shift(); // Consume '}'
       }
+      this.popScope();
+      return statements;
+    }
 
-      const rightToken = this.tokens.shift();
-      const right = this.parseLiteralOrExpression(rightToken);
-      if (right.error) {
-        return right;
+    parseStatement() {
+      if (this.tokens.length === 0) return null;
+
+      if (this.isLoopKeyword(this.tokens[0]))
+        return this.parseLoop(this.tokens[0].value);
+      if (this.isAssignment(this.tokens)) return this.parseAssignment();
+      if (this.isIfKeyword(this.tokens[0])) return this.parseIfStatement();
+      if (this.isMethodCall(this.tokens)) return this.parseMethodCall();
+      if (this.isDeclaration(this.tokens)) return this.parseDeclaration();
+      if (this.isSwitchKeyword(this.tokens[0]))
+        return this.parseSwitchStatement();
+
+      const expr = this.parseExpression();
+      return expr;
+    }
+
+    parseMethodCall() {
+      const objectParts = [];
+      objectParts.push(this.tokens.shift().value);
+
+      while (this.tokens.length > 0 && this.tokens[0].value === ".") {
+        this.tokens.shift();
+        objectParts.push(this.tokens.shift().value);
       }
+      const method = objectParts.pop();
+      const object = objectParts.join(".");
 
-      return {
-        type: "Expression",
-        left,
-        operator: opToken.value,
-        right,
+      if (!this.consumeToken("(", `Expected '(' after method name '${method}'`))
+        return null;
+      let args = [];
+
+      while (this.tokens.length > 0 && this.tokens[0].value !== ")") {
+        const parsedArg = this.parseExpression();
+        args.push(parsedArg);
+
+        if (this.tokens[0]?.value === ",") this.tokens.shift();
+      }
+      if (this.tokens.length === 0) {
+        this.errors.push("Unclosed method call: Missing ')'");
+        return { type: "MethodCall", object, method, arguments: args };
+      }
+      this.tokens.shift(); // Consume ')'
+      if (this.tokens.length > 0) {
+        this.consumeSemicolon(
+          `Missing semicolon after method call to <span class="math-inline">\{object\}\.</span>{method}`
+        );
+      }
+      const methodcall = {
+        type: "MethodCall",
+        object,
+        method,
+        arguments: args,
       };
-    } else {
-      return left;
-    }
-  }
 
-  //bago
-  parseBody() {
-    if (this.tokens.length === 0) {
-      return { error: "Unexpected end of tokens while parsing body" };
+      this.analyzeMethodCallArguments(methodcall);
+      return methodcall;
     }
 
-    // Handle single statements without braces like sa if
-    if (this.tokens[0].value !== "{") {
-      const statement = this.parseStatement();
-      if (statement.error) {
-        return { error: statement.error };
+    parseLoop(loopType) {
+      if (loopType === "do") {
+        this.tokens.shift();
+        const body = this.parseBlock();
+        if (!body) {
+          this.errors.push("Invalid body in do-while loop");
+          return null;
+        }
+        if (!this.consumeToken("while", "Expected 'while' after do block"))
+          return null;
+        if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
+        const condition = this.parseCondition();
+        if (!condition) {
+          this.errors.push("Invalid condition in do-while loop");
+          return null;
+        }
+        if (
+          !this.consumeToken(
+            ")",
+            "Expected ')' after condition in do-while loop"
+          )
+        )
+          return null;
+        this.consumeSemicolon("Missing semicolon after do-while loop");
+        return { type: "DoWhileLoop", condition, body };
+      } else if (loopType === "while") {
+        this.tokens.shift();
+        if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
+        const condition = this.parseCondition();
+        if (!condition) {
+          this.errors.push("Invalid condition in while loop");
+          return null;
+        }
+        if (
+          !this.consumeToken(")", "Expected ')' after condition in while loop")
+        )
+          return null;
+        const body = this.parseBlock();
+        if (!body) {
+          this.errors.push("Invalid body in while loop");
+          return null;
+        }
+        return { type: "WhileLoop", condition, body };
+      } else if (loopType === "for") {
+        this.tokens.shift();
+        if (!this.consumeToken("(", "Expected '(' after 'for'")) return null;
+        let init;
+        if (this.isAssignment(this.tokens)) {
+          init = this.parseAssignment();
+        } else {
+          while (this.tokens.length > 0 && this.tokens[0].value !== ";")
+            this.tokens.shift();
+          init = { type: "EmptyStatement" };
+          if (
+            !this.consumeToken(
+              ";",
+              "Expected ';' after initialization in for loop"
+            )
+          )
+            return null;
+        }
+        let condition;
+        if (this.tokens[0]?.value === ";") {
+          condition = { type: "EmptyStatement" };
+          this.tokens.shift();
+        } else {
+          condition = this.parseCondition();
+          if (
+            !this.consumeToken(";", "Expected ';' after condition in for loop")
+          )
+            return null;
+        }
+        let iteration;
+        if (this.tokens[0]?.value === ")") {
+          iteration = { type: "EmptyStatement" };
+        } else {
+          iteration = this.parseIteration();
+        }
+        if (
+          !this.consumeToken(
+            ")",
+            "Expected ')' after iteration expression in for loop"
+          )
+        )
+          return null;
+        const body = this.parseBlock();
+        if (!body) {
+          this.errors.push("Invalid body in for loop");
+          return null;
+        }
+        return { type: "ForLoop", init, condition, iteration, body };
       }
-      return [statement];
     }
 
-    this.tokens.shift();
-    // Remove '{'
-
-    const body = [];
-    // Handle empty body case
-    if (this.tokens.length > 0 && this.tokens[0].value === "}") {
-      this.tokens.shift();
-      // Remove '}'
-      return body;
-      // Return empty array for empty body
-    }
-
-    while (this.tokens.length > 0 && this.tokens[0].value !== "}") {
-      const statement = this.parseStatement();
-      if (statement.error) {
-        return { error: statement.error };
+    parseIteration() {
+      if (this.tokens.length >= 2) {
+        const token1 = this.tokens[0];
+        const token2 = this.tokens[1];
+        if (
+          token1?.type === "identifier" &&
+          (token2?.value === "++" || token2?.value === "--")
+        ) {
+          this.tokens.shift();
+          this.tokens.shift();
+          return {
+            type: token2.value === "++" ? "Increment" : "Decrement",
+            operator: token2.value,
+            argument: { type: "Variable", value: token1.value },
+            form: "postfix",
+          };
+        } else if (
+          (token1?.value === "++" || token1?.value === "--") &&
+          token2?.type === "identifier"
+        ) {
+          this.tokens.shift();
+          this.tokens.shift();
+          return {
+            type: token1.value === "++" ? "Increment" : "Decrement",
+            operator: token1.value,
+            argument: { type: "Variable", value: token2.value },
+            form: "prefix",
+          };
+        } else if (
+          this.tokens.length >= 3 &&
+          token1?.type === "identifier" &&
+          ["+=", "-=", "*=", "/="].includes(token2?.value)
+        ) {
+          const identifier = this.tokens.shift();
+          const operator = this.tokens.shift();
+          const value = this.tokens.shift();
+          return {
+            type: "CompoundAssignment",
+            operator: operator.value,
+            left: { type: "Variable", value: identifier.value },
+            right: this.parseLiteralOrExpression(value),
+          };
+        } else if (
+          this.tokens.length >= 5 &&
+          token1?.type === "identifier" &&
+          token2?.value === "="
+        ) {
+          const left = this.tokens.shift();
+          const equals = this.tokens.shift();
+          const expr = this.parseExpression();
+          return {
+            type: "Assignment",
+            left: { type: "Variable", value: left.value },
+            operator: "=",
+            right: expr,
+          };
+        }
       }
-      body.push(statement);
+      while (this.tokens.length > 0 && this.tokens[0].value !== ")")
+        this.tokens.shift();
+      return { type: "EmptyStatement" };
     }
 
-    if (this.tokens.length === 0) {
-      return { error: "Missing closing brace '}'" };
+    parseSwitchStatement() {
+      this.tokens.shift(); // Consume 'switch'
+      if (!this.consumeToken("(", "Expected ( after switch")) return null;
+      const expression = this.parseExpression();
+      if (!this.consumeToken(")", "Expected ) after switch expression"))
+        return null;
+      if (!this.consumeToken("{", "Expected { after switch")) return null;
+
+      const cases = [];
+      let defaultCase = null;
+
+      while (this.tokens[0]?.value !== "}") {
+        const token = this.tokens[0];
+
+        if (token.value === "case") {
+          this.tokens.shift();
+          const value = this.parseExpression();
+          if (!this.consumeToken(":", "Expected : after case value"))
+            return null;
+
+          if (
+            body.length > 0 &&
+            body[body.length - 1]?.type !== "BreakStatement"
+          ) {
+            this.addError(
+              "Expected 'break;' at the end of case",
+              ErrorType.SEMANTIC,
+              this.tokens[0]?.loc
+            );
+          }
+
+          const body = [];
+          // Parse until next case/default/close-brace
+          while (
+            this.tokens[0] &&
+            !["case", "default", "}"].includes(this.tokens[0].value)
+          ) {
+            const stmt = this.parseStatement();
+            if (stmt) body.push(stmt);
+          }
+          cases.push({ type: "CaseClause", value, body });
+        } else if (token.value === "default") {
+          this.tokens.shift();
+          if (!this.consumeToken(":", "Expected : after default")) return null;
+
+          const body = [];
+          while (this.tokens[0] && this.tokens[0].value !== "}") {
+            const stmt = this.parseStatement();
+            if (stmt) body.push(stmt);
+          }
+          defaultCase = { type: "DefaultClause", body };
+        } else {
+          this.errors.push(
+            `Unexpected token: ${token.value}`,
+            ErrorType.SYNTAX
+          );
+          this.tokens.shift();
+        }
+      }
+
+      this.consumeToken("}", "Expected closing brace for switch");
+      return {
+        type: "SwitchStatement",
+        expression,
+        cases,
+        default: defaultCase,
+      };
     }
 
-    this.tokens.shift(); // Remove '}'
-    return body;
+    isValidComparisonOperator(op) {
+      const validOperators = ["==", "!=", "<", ">", "<=", ">="];
+      return validOperators.includes(op);
+    }
+
+    isValidAssignment(value, expectedType) {
+      if (expectedType === "int") return isInteger(value.value);
+      if (expectedType === "float") return isFloat(value.value);
+      if (expectedType === "String") return value.type === "literal";
+      if (expectedType === "boolean")
+        return value.value === "true" || value.value === "false";
+      if (expectedType === "char")
+        return value.type === "literal" && value.value.length === 3;
+      if (expectedType === "void")
+        return value.type === "literal" && value.value.length === 0;
+      if (expectedType === "double") return isFloat(value.value);
+      return false;
+    }
+
+    isAssignment(tokens) {
+      const typeKeywords = ["int", "float", "String", "boolean", "char"];
+      return (
+        tokens.length >= 4 &&
+        typeKeywords.includes(tokens[0].value) &&
+        tokens[1].type === "identifier" &&
+        tokens[2].value === "="
+      );
+    }
+
+    isDeclaration(tokens) {
+      const typeKeywords = ["int", "float", "String", "boolean", "char"];
+      return (
+        tokens.length >= 2 &&
+        typeKeywords.includes(tokens[0].value) &&
+        tokens[1].type === "identifier"
+      );
+    }
+
+    isLoopKeyword(token) {
+      return (
+        token?.type === "keyword" &&
+        ["for", "while", "do"].includes(token?.value)
+      );
+    }
+
+    isIfKeyword(token) {
+      return token?.type === "keyword" && token?.value === "if";
+    }
+
+    isMethodCall(tokens) {
+      return (
+        tokens[0]?.type === "identifier" &&
+        tokens.some((token) => token.value === "(")
+      );
+    }
+
+    isSwitchKeyword(token) {
+      return token?.type === "keyword" && token.value === "switch";
+    }
+
+    consumeSemicolon(errorMessage) {
+      if (
+        this.tokens.length > 0 &&
+        this.tokens[0]?.type === "punctuator" &&
+        this.tokens[0]?.value === ";"
+      ) {
+        this.tokens.shift();
+      } else {
+        this.errors.push(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
+      }
+    }
+
+    cconsumeToken(expectedToken, errorMessage) {
+      if (this.tokens[0]?.value === expectedToken) {
+        this.tokens.shift();
+        return true;
+      } else {
+        this.errors.push(errorMessage, ErrorType.SYNTAX);
+        return false;
+      }
+    }
+
+    analyzeMethodCallArguments(methodCall) {
+      if (methodCall.method === "println") {
+        if (methodCall.arguments.length !== 1) {
+          this.errors.push(
+            "println method expects one argument.",
+            ErrorType.SEMANTIC
+          );
+        }
+      }
+    }
+
+    declareVariable(identifier, type) {
+      const currentScope = this.getCurrentScope();
+      if (currentScope[identifier]) {
+        this.errors.push(
+          `Variable '${identifier}' already declared in this scope.`,
+          ErrorType.SEMANTIC
+        );
+        return false;
+      }
+      currentScope[identifier] = { type, initialized: false };
+      return true;
+    }
+
+    assignVariable(identifier) {
+      for (let i = this.symbolTable.length - 1; i >= 0; i--) {
+        if (this.symbolTable[i][identifier]) {
+          this.symbolTable[i][identifier].initialized = true;
+          return;
+        }
+      }
+      this.errors.push(
+        `Variable '${identifier}' is not declared.`,
+        ErrorType.SEMANTIC
+      );
+    }
+
+    lookupVariable(identifier) {
+      for (let i = this.symbolTable.length - 1; i >= 0; i--) {
+        if (this.symbolTable[i][identifier]) {
+          return this.symbolTable[i][identifier];
+        }
+      }
+      return null; // Variable not found
+    }
+
+    addError(message, type = ErrorType.SEMANTIC) {
+      this.errors.push({ message, type });
+    }
+
+    handleParsedStatement(statement, errorMessage, ast) {
+      if (statement) {
+        if (statement.error) {
+          // Error already handled in parse()
+          return;
+        }
+        ast.push(statement);
+      }
+    }
+
+    analyzeErrors() {
+      let syntaxErrors = this.errors.filter(
+        (err) => err.type === ErrorType.SYNTAX
+      );
+      let semanticErrors = this.errors.filter(
+        (err) => err.type === ErrorType.SEMANTIC
+      );
+
+      console.log("Syntax Errors:");
+      syntaxErrors.forEach((err) => console.log("- " + err.message));
+
+      console.log("Semantic Errors:");
+      semanticErrors.forEach((err) => console.log("- " + err.message));
+    }
+
+    getCurrentScope() {
+      return this.symbolTable[this.symbolTable.length - 1];
+    }
+
+    pushScope() {
+      this.symbolTable.push({});
+    }
+
+    popScope() {
+      this.symbolTable.pop();
+    }
   }
-
-  parseStatement() {
-    // For error handling pwede remove , pero mag kakaroon ng error pag mali :)
-    if (this.tokens.length === 0) {
-      //error check
-      return { error: "Unexpected end of tokens while parsing statement" };
-    }
-
-    const token = this.tokens[0];
-
-    if (token.type === "Keyword") {
-      if (token.value === "for") return this.parseLoop("for");
-      if (token.value === "while") return this.parseLoop("while");
-      if (token.value === "do") return this.parseLoop("do");
-    }
-    // myay dagdag dito pero ayun sabi nga ni jp sa taas pede remove pero
-    if (
-      token.type === "Identifier" &&
-      this.tokens.length >= 2 &&
-      this.tokens[1].value === "="
-    ) {
-      return this.parseAssignment();
-    }
-
-    if (
-      token.type === "Identifier" &&
-      this.tokens.length >= 2 &&
-      (this.tokens[1].value === "++" || this.tokens[1].value === "--")
-    ) {
-      return this.parseIteration();
-    }
-
-    if (
-      token.type === "Identifier" &&
-      this.tokens.length >= 3 &&
-      (this.tokens[1].value === "+=" || this.tokens[1].value === "-=")
-    ) {
-      return this.parseCompoundAssignment();
-    }
-
-    return this.parseExpression();
-  }
-}
+});
