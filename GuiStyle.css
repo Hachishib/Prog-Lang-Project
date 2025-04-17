@@ -90,9 +90,18 @@ body {
   cursor: pointer;
 }
 
-.ast-box,
+.ast-box {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 820px;
+  overflow: auto;
+}
+
+.ast-container {
+  margin-top: 10px;
+}
 .error-box {
-  /*   Error and ASt box   */
+  padding-top: 10px;
   border: 1px solid #ccc;
   padding: 10px;
   height: 200px;
