@@ -522,7 +522,6 @@ class Parser {
         break;
       }
     }
-  
     if (elseIfBranches.length > 0) {
       ifNode.elseIfBranches = elseIfBranches;
     }
@@ -553,7 +552,7 @@ class Parser {
       right: right,
     };
   }  
-  
+
   dataType(token) {
     const types = ["int", "float", "char", "String", "boolean"];
     return types.includes(token);
@@ -592,7 +591,6 @@ class Parser {
         const expr = this.parseExpression();
         this.handleParsedStatement(expr, `Invalid expression`, statements);
       } else if (this.tokens[0]?.value === ";") {
-
         this.tokens.shift();
       } else {
         this.addError(`Unrecognized token in block: ${this.tokens[0]?.value}`, ErrorType.SYNTAX, this.tokens[0]?.loc);
