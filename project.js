@@ -299,11 +299,17 @@ class Parser {
     const identifier = this.tokens.shift();
     const op = this.tokens.shift();
     let error = null;
+    let value = null;
 
-    if (op?.value !== "=") {
-      error = this.addError(`Invalid assignment syntax near '${op?.value}'`, ErrorType.SYNTAX, op?.loc);
+    if (!op || op.value !== "=") {
+      error = this.addError(
+        `Invalid assignment syntax: Expected '=' after identifier '${identifier?.value}'instead of '${op?.value}'`,
+        ErrorType.SYNTAX,
+        op?.loc || identifier?.loc
+      );
+    } else {
+      value = this.tokens.shift();
     }
-    const value = this.tokens.shift();
     this.consumeSemicolon(
       `Missing semicolon after assignment of '${identifier.value}'`
     );
@@ -421,14 +427,14 @@ class Parser {
   parseLiteralOrExpression(token) {
     if (!token) return { error: "Missing token in expression" };
   
-    const dataKeywords = ["int", "float", "boolean", "String", "char"];
-    if (dataKeywords.includes(token.value)) {
+    const typeKeywords = ["int", "float", "char", "boolean", "String", "double"];
+    if (token.type === "keyword" && typeKeywords.includes(token.value)) {
       this.addError(
-        `Invalid use of type '${token.value}' inside condition. Declarations are not allowed here.`,
+        `Unexpected token inside expression '${token.value}'.`,
         ErrorType.SEMANTIC,
-        token?.loc
+        token.loc
       );
-      return { error: `Invalid use of type keyword: ${token.value}` };
+      return { error: "Invalid declaration in expression" };
     }
   
     if (token.type === "constant") {
@@ -472,11 +478,6 @@ class Parser {
           ErrorType.SEMANTIC,
           this.tokens[0]?.loc
         );
-        return {
-          type: "Variable",
-          value: token.value,
-          dataType: variable.type,
-        };
       }
       return {
         type: "Variable",
@@ -528,28 +529,36 @@ class Parser {
     return ifNode;
   }  
 
-  parseCondition(context = "") {
+  parseCondition() {
     if (this.tokens.length < 3) {
       this.addError("Incomplete condition");
       return null;
     }
   
-    const left = this.parseLiteralOrExpression(this.tokens.shift());
+    const leftToken = this.tokens.shift();
+    const left = this.parseLiteralOrExpression(leftToken);
+    if (left?.error) return null;
+  
     const operatorToken = this.tokens.shift();
     if (!this.isValidComparisonOperator(operatorToken?.value)) {
-      this.addError(`Invalid comparison operator '${operatorToken?.value}' in condition`);
+      this.addError(
+        `Invalid comparison operator '${operatorToken?.value}' in condition`,
+        ErrorType.SYNTAX,
+        operatorToken?.loc
+      );
+      return null;
     }
   
-    const right = this.parseLiteralOrExpression(this.tokens.shift());
-    if (context === "if" || context === "else if") {
-      this.semanticCons(left, right, operatorToken?.value);
-    }
+    const rightToken = this.tokens.shift();
+    const right = this.parseLiteralOrExpression(rightToken);
+    if (right?.error) return null;
+    this.semanticCons(left, right, operatorToken?.value);
   
     return {
       type: "Condition",
-      left: left,
+      left,
       operator: operatorToken?.value,
-      right: right,
+      right
     };
   }  
 
@@ -924,15 +933,22 @@ class Parser {
     return token?.type === "keyword" && token.value === "switch";
   }
 
-  consumeSemicolon(errorMessage) {
-    if (this.tokens.length > 0 && this.tokens[0]?.type === "punctuator" && this.tokens[0]?.value === ";") 
-    {
+  consumeSemicolon(context = "statement", identifier = null) {
+    if (
+      this.tokens.length > 0 &&
+      this.tokens[0]?.type === "punctuator" &&
+      this.tokens[0]?.value === ";"
+    ) {
       this.tokens.shift();
-    } 
-    else {
-      this.addError(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
+    } else {
+      const name = identifier ? ` '${identifier}'` : "";
+      this.addError(
+        `Missing semicolon after ${context}${name}`,
+        ErrorType.SYNTAX,
+        this.tokens[0]?.loc
+      );
     }
-  }
+  }  
 
   consumeToken(expectedToken, errorMessage) {
     if (this.tokens.length > 0 && this.tokens[0]?.value === expectedToken) {
@@ -1071,7 +1087,7 @@ class Parser {
     if (left?.type === "Variable" && right?.type === "Variable") {
       if (left.dataType !== right.dataType) {
         this.addError(
-          `Type mismatch in condition: '${left.value}' is '${left.dataType}' but '${right.value}' is '${right.dataType}'`,
+          `Type mismatch in condition: ' ${left.dataType}' to '${right.dataType}' comparison. ''`,
           ErrorType.SEMANTIC
         );
       }
@@ -1091,28 +1107,28 @@ class Parser {
       !comparisons.some(([a, b]) => a === left.dataType && b === right.dataType)
     ) {
       this.addError(
-        `Incompatible types in condition: '${left.dataType}' and '${right.dataType}'`,
+        `Datatypes mismatch: '${left.dataType}' and '${right.dataType}' in condition`,
         ErrorType.SEMANTIC
       );
     }
   
     if (operator === "=") {
       this.addError(
-        `Did you mean '==' instead of '=' in the condition? '=' is an assignment, not a comparison.`,
+        `Invalid operator '=' in condition`,
         ErrorType.SEMANTIC
       );
     }
   
     if (operator === "==" && left.dataType === "String" && right.dataType === "String") {
       this.addError(
-        `String comparison using '=='. Use '.equals()' instead to compare string contents.`,
+        `Invalid comparison in condition`,
         ErrorType.SEMANTIC
       );
     }
   
     if (["+", "-", "*", "/"].includes(operator)) {
       this.addError(
-        `Condition contains arithmetic operator '${operator}' without a proper comparison. Use 'x + y > 0'.`,
+        `Invalid comparison in condition`,
         ErrorType.SEMANTIC
       );
     }
@@ -1122,7 +1138,7 @@ class Parser {
       (right.dataType === "boolean" && left.dataType !== "boolean")
     ) {
       this.addError(
-        `Invalid comparison between boolean and non-boolean type`,
+        `Invalid comparison between the datatypes in condition`,
         ErrorType.SEMANTIC
       );
     }
@@ -1132,14 +1148,14 @@ class Parser {
       (left.dataType === "String" && right.dataType === "char")
     ) {
       this.addError(
-        `Suspicious comparison: comparing 'char' with 'String'`,
+        `Invalid comparison between the datatypes in condition`,
         ErrorType.SEMANTIC
       );
     }
   
     if (left.type === "Literal" && right.type === "Literal") {
       this.addError(
-        `Condition compares two literals ('${left.value}' and '${right.value}'), which is always ${left.value == right.value}`,
+        `infinite comparison in condition`,
         ErrorType.SEMANTIC
       );
     }
