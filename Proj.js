@@ -299,11 +299,17 @@ class Parser {
     const identifier = this.tokens.shift();
     const op = this.tokens.shift();
     let error = null;
+    let value = null;
 
-    if (op?.value !== "=") {
-      error = this.addError(`Invalid assignment syntax near '${op?.value}'`, ErrorType.SYNTAX, op?.loc);
+    if (!op || op.value !== "=") {
+      error = this.addError(
+        `Invalid assignment syntax: Expected '=' after identifier '${identifier?.value}'instead of '${op?.value}'`,
+        ErrorType.SYNTAX,
+        op?.loc || identifier?.loc
+      );
+    } else {
+      value = this.tokens.shift();
     }
-    const value = this.tokens.shift();
     this.consumeSemicolon(
       `Missing semicolon after assignment of '${identifier.value}'`
     );
@@ -420,6 +426,17 @@ class Parser {
 
   parseLiteralOrExpression(token) {
     if (!token) return { error: "Missing token in expression" };
+  
+    const typeKeywords = ["int", "float", "char", "boolean", "String", "double"];
+    if (token.type === "keyword" && typeKeywords.includes(token.value)) {
+      this.addError(
+        `Unexpected token inside expression '${token.value}'.`,
+        ErrorType.SEMANTIC,
+        token.loc
+      );
+      return { error: "Invalid declaration in expression" };
+    }
+  
     if (token.type === "constant") {
       if (isInteger(token.value))
         return { type: "Literal", value: token.value, dataType: "int" };
@@ -427,56 +444,74 @@ class Parser {
         return { type: "Literal", value: token.value, dataType: "float" };
       return { error: `Invalid constant: ${token.value}` };
     }
+  
     if (token.type === "literal") {
       if (token.value.startsWith('"') && token.value.endsWith('"')) {
         return { type: "Literal", value: token.value, dataType: "String" };
-      } else if (token.value.startsWith("'") && token.value.endsWith("'") && token.value.length === 3) {
-        return { type: "Literal", value: token.value.charAt(1), dataType: "char" }; // Extract the character
+      } else if (
+        token.value.startsWith("'") &&
+        token.value.endsWith("'") &&
+        token.value.length === 3
+      ) {
+        return {
+          type: "Literal",
+          value: token.value.charAt(1),
+          dataType: "char",
+        };
       } else {
         return { error: `Invalid literal: ${token.value}` };
       }
     }
+  
     if (token.type === "identifier") {
       const variable = this.lookupVariable(token.value);
       if (!variable) {
-        return this.addError(`Variable '${token.value}' is not declared.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
+        return this.addError(
+          `Variable '${token.value}' is not declared.`,
+          ErrorType.SEMANTIC,
+          this.tokens[0]?.loc
+        );
       }
       if (!variable.initialized) {
-        this.addError(`Variable '${token.value}' is not initialized.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
-        return {
-          type: "Variable",
-          value: token.value,
-          dataType: variable.type,
-        };
+        this.addError(
+          `Variable '${token.value}' is not initialized.`,
+          ErrorType.SEMANTIC,
+          this.tokens[0]?.loc
+        );
       }
-      return { type: "Variable", value: token.value, dataType: variable.type };
+      return {
+        type: "Variable",
+        value: token.value,
+        dataType: variable.type,
+      };
     }
-  }
+  }  
 
-  parseIfStatement() {
+  parseIfStatement(context = "if") {
     if (!this.isIfKeyword(this.tokens[0])) {
       return null;
     }
-    this.tokens.shift(); // Consume 'if'
+    this.tokens.shift();
     if (!this.consumeToken("(", "Expected '(' after 'if'")) {
       return null;
     }
-    const condition = this.parseCondition();
+  
+    const condition = this.parseCondition(context);
     if (!this.consumeToken(")", "Expected ')' after condition")) {
       return null;
     }
+  
     const thenBranch = this.parseBlock();
     if (!thenBranch) {
       return null;
     }
-
+  
     const ifNode = { type: "IfStatement", condition, thenBranch };
     let elseIfBranches = [];
-
     while (this.tokens[0]?.value === "else") {
-      this.tokens.shift(); // Consume 'else'
+      this.tokens.shift();
       if (this.isIfKeyword(this.tokens[0])) {
-        const elseIfNode = this.parseIfStatement();
+        const elseIfNode = this.parseIfStatement("else if");
         if (elseIfNode) {
           elseIfBranches.push(elseIfNode);
         }
@@ -492,27 +527,46 @@ class Parser {
       ifNode.elseIfBranches = elseIfBranches;
     }
     return ifNode;
-  }
+  }  
 
   parseCondition() {
     if (this.tokens.length < 3) {
-      this.addError("Incomplete condition", ErrorType.SYNTAX);
+      this.addError("Incomplete condition");
       return null;
     }
-    const left = this.tokens.shift();
+  
+    const leftToken = this.tokens.shift();
+    const left = this.parseLiteralOrExpression(leftToken);
+    if (left?.error) return null;
+  
     const operatorToken = this.tokens.shift();
-    if (!this.isValidComparisonOperator(operatorToken.value)) {
-      this.addError(`Invalid comparison operator '${operatorToken.value}' in condition`, ErrorType.SYNTAX, operatorToken.loc);
+    if (!this.isValidComparisonOperator(operatorToken?.value)) {
+      this.addError(
+        `Invalid comparison operator '${operatorToken?.value}' in condition`,
+        ErrorType.SYNTAX,
+        operatorToken?.loc
+      );
+      return null;
     }
-    const right = this.tokens.shift();
+  
+    const rightToken = this.tokens.shift();
+    const right = this.parseLiteralOrExpression(rightToken);
+    if (right?.error) return null;
+    this.semanticCons(left, right, operatorToken?.value);
+  
     return {
       type: "Condition",
-      left: this.parseLiteralOrExpression(left),
-      operator: operatorToken.value,
-      right: this.parseLiteralOrExpression(right),
+      left,
+      operator: operatorToken?.value,
+      right
     };
-  }
+  }  
 
+  dataType(token) {
+    const types = ["int", "float", "char", "String", "boolean"];
+    return types.includes(token);
+  }
+  
   parseBlock() {
     if (!this.consumeToken("{", "Expected '{'")) return null;
     this.pushScope();
@@ -828,16 +882,16 @@ class Parser {
   isValidAssignment(value, expectedType) {
     if (expectedType === "int") return isInteger(value.value);
     if (expectedType === "float") return isFloat(value.value);
-    if (expectedType === "String") return value.type === "literal";
+    if (expectedType === "String") return value.dataType === "String";
     if (expectedType === "boolean")
       return value.value === "true" || value.value === "false";
     if (expectedType === "char")
-      return value.type === "literal" && value.value.length === 3;
+      return value.dataType === "char";
     if (expectedType === "void")
-      return value.type === "literal" && value.value.length === 0;
+      return false;
     if (expectedType === "double") return isFloat(value.value);
     return false;
-  }
+  }  
 
   isAssignment(tokens) {
     const typeKeywords = ["int", "float", "String", "boolean", "char"];
@@ -879,15 +933,22 @@ class Parser {
     return token?.type === "keyword" && token.value === "switch";
   }
 
-  consumeSemicolon(errorMessage) {
-    if (this.tokens.length > 0 && this.tokens[0]?.type === "punctuator" && this.tokens[0]?.value === ";") 
-    {
+  consumeSemicolon(context = "statement", identifier = null) {
+    if (
+      this.tokens.length > 0 &&
+      this.tokens[0]?.type === "punctuator" &&
+      this.tokens[0]?.value === ";"
+    ) {
       this.tokens.shift();
-    } 
-    else {
-      this.addError(errorMessage, ErrorType.SYNTAX); // Categorize as syntax error
+    } else {
+      const name = identifier ? ` '${identifier}'` : "";
+      this.addError(
+        `Missing semicolon after ${context}${name}`,
+        ErrorType.SYNTAX,
+        this.tokens[0]?.loc
+      );
     }
-  }
+  }  
 
   consumeToken(expectedToken, errorMessage) {
     if (this.tokens.length > 0 && this.tokens[0]?.value === expectedToken) {
@@ -978,5 +1039,125 @@ class Parser {
 
   popScope() {
     this.symbolTable.pop();
+  }
+
+  semanticCons(left, right, operator) {
+    if (left?.type === "Variable") {
+      const varInfo = this.lookupVariable(left.value);
+      if (!varInfo) {
+        this.addError(`Variable '${left.value}' in condition is not declared`, ErrorType.SEMANTIC);
+      } else {
+        left.dataType = varInfo.type;
+        if (!varInfo.initialized) {
+          this.addError(`Variable '${left.value}' used in condition before initialization`, ErrorType.SEMANTIC);
+        }
+      }
+    }
+  
+    if (right?.type === "Variable") {
+      const varInfo = this.lookupVariable(right.value);
+      if (!varInfo) {
+        this.addError(`Variable '${right.value}' in condition is not declared`, ErrorType.SEMANTIC);
+      } else {
+        right.dataType = varInfo.type;
+        if (!varInfo.initialized) {
+          this.addError(`Variable '${right.value}' used in condition before initialization`, ErrorType.SEMANTIC);
+        }
+      }
+    }
+  
+    if (left?.type === "Variable" && right?.type === "Literal") {
+      if (!this.isValidAssignment(right, left.dataType)) {
+        this.addError(
+          `Invalid comparison: '${right.value}' does not match type '${left.dataType}' of '${left.value}'`,
+          ErrorType.SEMANTIC
+        );
+      }
+    }
+  
+    if (left?.type === "Literal" && right?.type === "Variable") {
+      if (!this.isValidAssignment(left, right.dataType)) {
+        this.addError(
+          `Invalid comparison: '${left.value}' does not match type '${right.dataType}' of '${right.value}'`,
+          ErrorType.SEMANTIC
+        );
+      }
+    }
+  
+    if (left?.type === "Variable" && right?.type === "Variable") {
+      if (left.dataType !== right.dataType) {
+        this.addError(
+          `Type mismatch in condition: ' ${left.dataType}' to '${right.dataType}' comparison. ''`,
+          ErrorType.SEMANTIC
+        );
+      }
+    }
+  
+    const comparisons = [
+      ["int", "int"],
+      ["float", "float"],
+      ["int", "float"],
+      ["float", "int"],
+      ["boolean", "boolean"],
+      ["char", "char"],
+      ["String", "String"]
+    ];
+    if (
+      left?.dataType && right?.dataType &&
+      !comparisons.some(([a, b]) => a === left.dataType && b === right.dataType)
+    ) {
+      this.addError(
+        `Datatypes mismatch: '${left.dataType}' and '${right.dataType}' in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
+  
+    if (operator === "=") {
+      this.addError(
+        `Invalid operator '=' in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
+  
+    if (operator === "==" && left.dataType === "String" && right.dataType === "String") {
+      this.addError(
+        `Invalid comparison in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
+  
+    if (["+", "-", "*", "/"].includes(operator)) {
+      this.addError(
+        `Invalid comparison in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
+  
+    if (
+      (left.dataType === "boolean" && right.dataType !== "boolean") ||
+      (right.dataType === "boolean" && left.dataType !== "boolean")
+    ) {
+      this.addError(
+        `Invalid comparison between the datatypes in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
+  
+    if (
+      (left.dataType === "char" && right.dataType === "String") ||
+      (left.dataType === "String" && right.dataType === "char")
+    ) {
+      this.addError(
+        `Invalid comparison between the datatypes in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
+  
+    if (left.type === "Literal" && right.type === "Literal") {
+      this.addError(
+        `infinite comparison in condition`,
+        ErrorType.SEMANTIC
+      );
+    }
   }
 }
