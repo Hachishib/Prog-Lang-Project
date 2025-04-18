@@ -156,21 +156,21 @@ function processToken(
 }
 
 function display(name, arr, mark) {
-  process.stdout.write(name + ": ");
-  for (let i = 0; i < mark; i++) {
-    if (arr[i] === null) continue;
-    let repeated = 0;
-    for (let j = 0; j < i; j++) {
-      if (arr[i] === arr[j]) {
-        repeated = 1;
-        break;
-      }
+    process.stdout.write(name + ": ");
+    for (let i = 0; i < mark; i++) {
+        if (arr[i] === null) continue;
+        let repeated = 0;
+        for (let j = 0; j < i; j++) {
+            if (arr[i] === arr[j]) {
+                repeated = 1;
+                break;
+            }
+        }
+        if (repeated === 0) {
+            process.stdout.write(arr[i] + "  ");
+        }
     }
-    if (repeated === 0) {
-      process.stdout.write(arr[i] + "  ");
-    }
-  }
-  console.log();
+    console.log();
 }
 
 function isKeyword(key) {
@@ -247,8 +247,9 @@ function isOperator(op) {
 function isOperatorChar(ch) {
   return "+-*/=%<>!&|".includes(ch);
 }
-
-function isPunctuation(code, index) {
+  
+function isPunctuation(code, index) 
+{
   let ch = code.charAt(index);
   const punctuators = ";:,!?[]{}()"; // Removed '.' from here
 
@@ -268,8 +269,9 @@ class Parser {
     this.symbolTable = [{}];
     this.errors = [];
   }
-
-  parse() {
+  
+  parse() 
+  {
     const ast = [];
     while (this.tokens.length > 0) {
       const statement = this.parseStatement();
@@ -1158,6 +1160,521 @@ class Parser {
         `infinite comparison in condition`,
         ErrorType.SEMANTIC
       );
+    }
+  }
+
+  parseIfStatement() 
+  {
+    if (this.tokens[0]?.value !== "if") 
+    {
+      return null;
+    }
+    this.tokens.shift(); // Consume 'if'
+    // Parse condition
+    if (this.tokens[0]?.value !== "(") 
+    {
+      this.errors.push("Expected '(' after 'if'");
+      return null;
+    }
+    this.tokens.shift(); // Consume '('
+    const condition = this.parseCondition();
+    if (this.tokens[0]?.value !== ")") 
+    {
+      this.errors.push("Expected ')' after condition");
+      return null;
+    }
+    this.tokens.shift(); // Consume ')'
+    // Parse then block
+    const thenBranch = this.parseBlock();
+    if (!thenBranch) 
+    {
+      return null;
+    }
+    const ifNode = 
+    {
+      type: "IfStatement",
+      condition,
+      thenBranch,
+    };
+    let elseIfBranches = [];
+    while (this.tokens[0]?.value === "else") 
+    {
+      this.tokens.shift(); // Consume 'else'
+      if (this.tokens[0]?.value === "if") 
+      {
+        const elseIfNode = this.parseIfStatement();
+        if (elseIfNode) 
+        {
+          elseIfBranches.push(elseIfNode);
+        }
+      } 
+      else 
+      {
+        const elseBlock = this.parseBlock();
+        if (elseBlock) 
+        {
+          ifNode.elseBranch = elseBlock;
+        }
+        break;
+      }
+    }
+    if (elseIfBranches.length > 0) 
+    {
+      ifNode.elseIfBranches = elseIfBranches;
+    }
+    return ifNode;
+  }
+      
+  
+  parseCondition() 
+  {
+    if (this.tokens.length < 3) 
+    {
+      this.errors.push("Incomplete condition");
+      return null;
+    }
+    const left = this.tokens.shift();
+    const operatorToken = this.tokens.shift();
+    // Validate operator is a comparison operator
+    const validOperators = ["==", "!=", "<", ">", "<=", ">="];
+    if (!validOperators.includes(operatorToken.value)) 
+    {
+      this.errors.push(`Invalid comparison operator '${operatorToken.value}' in condition`);
+    }
+    const right = this.tokens.shift();
+    return {
+      type: "Condition",
+      left: this.parseLiteralOrExpression(left),
+      operator: operatorToken.value,
+      right: this.parseLiteralOrExpression(right)
+    };
+  }
+  
+  parseBlock() 
+  {
+    if (this.tokens[0]?.value !== "{") 
+    {
+      this.errors.push("Expected '{'");
+      return [];
+    }   
+    this.tokens.shift(); // Consume '{'
+    const statements = [];
+        
+    while (this.tokens.length > 0 && this.tokens[0]?.value !== "}") 
+    {
+      // Check for loop statements
+      if (this.tokens[0]?.type === "keyword" && ["for", "while", "do"].includes(this.tokens[0]?.value)) 
+      {
+        const loopStatement = this.parseLoop(this.tokens[0].value);
+        if (loopStatement) 
+        {
+          statements.push(loopStatement);
+        }
+      }
+      // Check for assignment
+      else if (this.isAssignment(this.tokens)) 
+      {
+        const assignment = this.parseAssignment();
+        assignment.error ? this.errors.push(assignment.error) : statements.push(assignment);
+      }
+      // Check for nested if statement
+      else if (this.tokens[0]?.type === "keyword" && this.tokens[0]?.value === "if") 
+      {
+        const ifStatement = this.parseIfStatement();
+        if (ifStatement) 
+        {
+          statements.push(ifStatement);
+        }
+      }
+      // Check for method calls (e.g., System.out.println)
+      else if (this.tokens.length >= 3 && this.tokens[0]?.type === "identifier" && this.tokens[1]?.value === "." && this.tokens[2]?.type === "identifier") 
+      {
+        const methodCall = this.parseMethodCall();
+        if (methodCall) statements.push(methodCall);
+      }
+      // Check for other expression statements
+      else if (this.tokens.length >= 3) 
+      {
+        const expr = this.parseExpression();
+        expr?.error ? this.errors.push(expr.error) : statements.push(expr);
+      } 
+      else 
+      {
+        // If we have a stray semicolon, just consume it
+        if (this.tokens[0]?.value === ";") 
+        {
+          this.tokens.shift();
+          continue;
+        }   
+        // Skip unrecognized token
+        this.errors.push(`Unrecognized token in block: ${this.tokens[0]?.value}`);
+        this.tokens.shift();
+      }
+    }
+        
+    if (this.tokens.length === 0) 
+    {
+      this.errors.push("Unclosed block: Missing '}'");
+    } 
+    else
+    {
+      this.tokens.shift(); // Consume '}'
+    }
+    return statements;
+  }
+      
+  parseStatement() 
+  {
+    if (this.tokens.length === 0) 
+    {
+      return null;
+    }  
+    // Loop statements
+    if (this.tokens[0]?.type === "keyword" && ["for", "while", "do"].includes(this.tokens[0]?.value)) 
+    {
+      return this.parseLoop(this.tokens[0].value);
+    }
+    // Assignment
+    if (this.isAssignment(this.tokens)) 
+    {
+      const assignment = this.parseAssignment();
+      return assignment;
+    }
+    // If-statement
+    if (this.tokens[0].value === "if") 
+    {
+      return this.parseIfStatement();
+    }
+    // Method Call (System.out.println)
+    if (this.tokens[0]?.type === "identifier" && this.tokens[1]?.value === "." && this.tokens[2]?.type === "identifier" && this.tokens[3]?.value === "." && this.tokens[4]?.type === "identifier" && this.tokens[5]?.value === "(") 
+    {
+      const methodCall = this.parseMethodCall();   
+      // Check for semicolon
+      if (this.tokens[0]?.type === "punctuator" && this.tokens[0]?.value === ";") 
+      {
+        this.tokens.shift(); // Consume semicolon
+      } 
+      else 
+      {
+        this.errors.push("Missing semicolon after method call");
+      }
+      return methodCall;
+    }
+    // Fallback to basic expression
+    const expr = this.parseExpression();
+    return expr;
+  }
+  
+  parseMethodCall() 
+  {
+    const objectParts = [];
+    objectParts.push(this.tokens.shift().value); // First part (e.g., "System")
+            
+    // Continue collecting object parts until we find something that isn't a dot followed by an identifier
+    while (this.tokens.length >= 2 && this.tokens[0].value === "." && this.tokens[1].type === "identifier") 
+    {
+      this.tokens.shift(); // Consume '.'
+      objectParts.push(this.tokens.shift().value); // Add next part (e.g., "out")
+    }
+    // The last part is the method name (e.g., "println")
+    const method = objectParts.pop(); 
+    const object = objectParts.join(".");
+            
+    // Check for opening parenthesis
+    if (this.tokens.length === 0 || this.tokens[0].value !== "(") 
+    {
+      this.errors.push(`Expected '(' after method name '${method}'`);
+      return null;
+    }
+    this.tokens.shift(); // Consume '('
+    // Parse arguments
+    const args = [];
+    while (this.tokens.length > 0 && this.tokens[0].value !== ")") 
+    {
+      // Handle arguments
+      const arg = this.tokens.shift();
+      args.push(this.parseLiteralOrExpression(arg));
+      // Handle argument separators (commas)
+      if (this.tokens[0]?.value === ",") 
+      {
+        this.tokens.shift(); // Consume ','
+      }
+    }
+    if (this.tokens.length === 0) 
+    {
+      this.errors.push("Unclosed method call: Missing ')'");
+      return {
+        type: "MethodCall",
+        object,
+        method,
+        arguments: args,
+      };
+    }
+    this.tokens.shift(); // Consume ')'
+    // Check for semicolon
+    if (this.tokens.length > 0 && this.tokens[0]?.value === ";") 
+    {
+      this.tokens.shift(); // Consume ';'
+    } 
+    else 
+    {
+      this.errors.push(`Missing semicolon after method call to ${object}.${method}`);
+    }
+    return {
+      type: "MethodCall",
+      object,
+      method,
+      arguments: args,
+    };
+  }
+          
+  // Parse loop statements (for, while, do-while)
+  parseLoop(loopType) 
+  {
+    if (loopType === "do") 
+    {
+      this.tokens.shift(); // Remove 'do'      
+      // Parse body
+      const body = this.parseBlock();
+      if (!body) 
+      {
+        this.errors.push("Invalid body in do-while loop");
+        return null;
+      }
+      // Check if the next token is 'while'
+      if (this.tokens.length === 0 || this.tokens[0].value !== "while") 
+      {
+        this.errors.push("Expected 'while' after do block");
+        return null;
+      }
+      this.tokens.shift(); // Remove 'while'
+      if (this.tokens[0]?.value !== "(") 
+      {
+        this.errors.push("Expected '(' after 'while'");
+        return null;
+      }
+            
+      this.tokens.shift(); // Remove '('      
+      // Parse condition
+      const condition = this.parseCondition();
+      if (!condition) 
+      {
+        this.errors.push("Invalid condition in do-while loop");
+        return null;
+      }
+            
+      if (this.tokens[0]?.value !== ")") 
+      {
+        this.errors.push("Expected ')' after condition in do-while loop");
+        return null;
+      }
+      this.tokens.shift(); // Remove ')'
+      // Check for semicolon
+      if (this.tokens[0]?.value === ";") 
+      {
+        this.tokens.shift();
+      } 
+      else 
+      {
+        this.errors.push("Missing semicolon after do-while loop");
+      }
+      return {
+        type: "DoWhileLoop",
+        condition,
+        body,
+      };
+    } 
+    else if (loopType === "while") 
+    {
+      this.tokens.shift(); // Remove 'while'
+      if (this.tokens[0]?.value !== "(") 
+      {
+        this.errors.push("Expected '(' after 'while'");
+        return null;
+      }
+      this.tokens.shift(); // Remove '('
+      // Parse condition
+      const condition = this.parseCondition();
+      if (!condition) 
+      {
+        this.errors.push("Invalid condition in while loop");
+        return null;
+      }
+      if (this.tokens[0]?.value !== ")") 
+      {
+        this.errors.push("Expected ')' after condition in while loop");
+        return null;
+      }
+      this.tokens.shift(); // Remove ')'
+      // Parse body
+      const body = this.parseBlock();
+      if (!body) 
+      {
+        this.errors.push("Invalid body in while loop");
+        return null;
+      }
+            
+      return {
+        type: "WhileLoop",
+        condition,
+        body,
+      };
+    }
+    else if (loopType === "for") 
+    {
+      this.tokens.shift(); // Remove 'for'
+      if (this.tokens[0]?.value !== "(") 
+      {
+        this.errors.push("Expected '(' after 'for'");
+        return null;
+      }
+      this.tokens.shift(); // Remove '('
+      // Parse initialization
+      let init;
+      if (this.isAssignment(this.tokens)) 
+      {
+        init = this.parseAssignment();
+      } 
+      else 
+      {
+        // Skip the initialization part
+        while (this.tokens.length > 0 && this.tokens[0].value !== ";") 
+        {
+          this.tokens.shift();
+        }
+        init = { type: "EmptyStatement" };
+        if (this.tokens.length === 0 || this.tokens[0].value !== ";") 
+        {
+          this.errors.push("Expected ';' after initialization in for loop");
+          return null;
+        }        
+        this.tokens.shift(); // Remove ';'
+      }
+      // Parse condition
+      let condition;
+      if (this.tokens[0]?.value === ";") 
+      {
+        condition = { type: "EmptyStatement" };
+        this.tokens.shift(); // Remove ';'
+      } 
+      else 
+      {
+        condition = this.parseCondition();
+        if (this.tokens.length === 0 || this.tokens[0].value !== ";") 
+        {
+          this.errors.push("Expected ';' after condition in for loop");
+          return null;
+        }
+        this.tokens.shift(); // Remove ';'
+      }
+      // Parse iteration expression
+      let iteration;
+      if (this.tokens[0]?.value === ")") 
+      {
+        iteration = { type: "EmptyStatement" };
+      } 
+      else 
+      {
+        // Parse iteration (i++, i+=1, etc.)
+        if (this.tokens.length >= 2) 
+        {
+          const token1 = this.tokens[0];
+          const token2 = this.tokens[1];
+          // Handle i++ or i--
+          if (token1?.type === "identifier" && token2?.value === "++" || token2?.value === "--") 
+          {
+            this.tokens.shift(); // identifier
+            this.tokens.shift(); // ++ or --
+            iteration = {
+              type: token2.value === "++" ? "Increment" : "Decrement",
+              operator: token2.value,
+              argument: {
+                type: "Variable",
+                value: token1.value
+              },
+              form: "postfix"
+            };
+          } 
+          // Handle ++i or --i
+          else if ((token1?.value === "++" || token1?.value === "--") && token2?.type === "identifier") 
+          {
+            this.tokens.shift(); // ++ or --
+            this.tokens.shift(); // identifier
+            iteration = {
+              type: token1.value === "++" ? "Increment" : "Decrement",
+              operator: token1.value,
+              argument: {
+                type: "Variable",
+                value: token2.value
+              },
+              form: "prefix"
+            };
+          }
+          // Handle i+=1 or i-=1
+          else if (this.tokens.length >= 3 && token1?.type === "identifier" && ["+=", "-=", "*=", "/="].includes(token2?.value)) 
+          {
+            const identifier = this.tokens.shift(); // identifier
+            const operator = this.tokens.shift(); // += or -= etc.
+            const value = this.tokens.shift(); // numeric value
+            iteration = {
+              type: "CompoundAssignment",
+              operator: operator.value,
+              left: {
+                type: "Variable",
+                value: identifier.value
+              },
+              right: this.parseLiteralOrExpression(value)
+            };
+          } 
+          // Handle simple assignment i=i+1
+          else if (this.tokens.length >= 5 && token1?.type === "identifier" && token2?.value === "=") 
+          {
+            // Parse as expression
+            const left = this.tokens.shift();  // identifier
+            const equals = this.tokens.shift(); // =
+            const expr = this.parseExpression();
+            iteration = {
+              type: "Assignment",
+              left: {
+                type: "Variable",
+                value: left.value
+              },
+              operator: "=",
+              right: expr
+            };
+          } 
+          else 
+          {
+            // Skip the iteration part
+            while (this.tokens.length > 0 && this.tokens[0].value !== ")") 
+            {
+              this.tokens.shift();
+            }
+            iteration = { type: "EmptyStatement" };
+          }
+                      
+          if (this.tokens.length === 0 || this.tokens[0].value !== ")") 
+          {
+            this.errors.push("Expected ')' after iteration expression in for loop");
+            return null;
+          }
+          this.tokens.shift(); // Remove ')'
+          // Parse body
+          const body = this.parseBlock();
+          if (!body) 
+          {
+            this.errors.push("Invalid body in for loop");
+            return null;
+          }            
+          return {
+            type: "ForLoop",
+            init,
+            condition,
+            iteration,
+            body,
+          };
+        }
+      }
     }
   }
 }
