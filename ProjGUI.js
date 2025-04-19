@@ -223,7 +223,6 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     const parser = new Parser(filteredTokens);
     const ast = parser.parse();
-    parser.analyzeErrors();
 
     return {
       lexOutput,
@@ -1189,21 +1188,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         ast.push(statement);
       }
-    }
-
-    analyzeErrors() {
-      let syntaxErrors = this.errors.filter(
-        (err) => err.type === ErrorType.SYNTAX
-      );
-      let semanticErrors = this.errors.filter(
-        (err) => err.type === ErrorType.SEMANTIC
-      );
-
-      console.log("Syntax Errors:");
-      syntaxErrors.forEach((err) => console.log("- " + err.message));
-
-      console.log("Semantic Errors:");
-      semanticErrors.forEach((err) => console.log("- " + err.message));
     }
 
     getCurrentScope() {
