@@ -227,7 +227,7 @@ body {
 }
 
 #toggleMode:hover {
-    background-color: #fb9393;
+    background-color: #2A2A2A;
     color: #000;
 }
 
@@ -411,8 +411,8 @@ body.dark-mode .no-js-share {
 }
 
 body.dark-mode .box {
-    background-color: #2A2A2A;
-    border: 1px solid #83C5BE;
+    border: 1px solid #333;
+    background-color: #83C5BE;
 }
 
 body.dark-mode .popup-content {
@@ -435,7 +435,7 @@ body.dark-mode #toggleMode {
 }
 
 body.dark-mode #toggleMode:hover {
-    background-color: #3A3A3A;
+    background-color: #ffffff;
 }
 
 body.dark-mode .text {
@@ -448,7 +448,7 @@ body.dark-mode label[for="inputWrite"],
 body.dark-mode label[for="outputWrite"],
 body.dark-mode #ast label,
 body.dark-mode #error label {
-    color: #E0E0E0;
+    color: #1C1C1C;
 }
 
 body.dark-mode #inputWrite{
@@ -472,8 +472,7 @@ body.dark-mode .convert-button:hover {
 }
 
 body.dark-mode #ast {
-    background-color: #2A2A2A;
-    border: 1px solid #f8d5d5;
+    background-color: pink;
 }
 
 body.dark-mode .ast-box {
@@ -482,8 +481,7 @@ body.dark-mode .ast-box {
 }
 
 body.dark-mode #error {
-    background-color: #2A2A2A;
-    border: 1px solid #E29578;
+    background-color: #E29578;
 }
 
 body.dark-mode .error-box {
