@@ -419,6 +419,8 @@ body.dark-mode .no-js-share {
 body.dark-mode .box {
   background-color: #2a2a2a;
   border: 1px solid #83c5be;
+  border: 1px solid #333;
+  background-color: #83c5be;
 }
 
 body.dark-mode .popup-content {
@@ -441,7 +443,9 @@ body.dark-mode #toggleMode {
 }
 
 body.dark-mode #toggleMode:hover {
-  background-color: #3a3a3a;
+  background-color: #fb9393;
+  background-color: #2a2a2a;
+  color: #000;
 }
 
 body.dark-mode .text {
@@ -455,6 +459,7 @@ body.dark-mode label[for="outputWrite"],
 body.dark-mode #ast label,
 body.dark-mode #error label {
   color: #e0e0e0;
+  color: #1c1c1c;
 }
 
 body.dark-mode #inputWrite {
@@ -480,6 +485,7 @@ body.dark-mode .convert-button:hover {
 body.dark-mode #ast {
   background-color: #2a2a2a;
   border: 1px solid #f8d5d5;
+  background-color: pink;
 }
 
 body.dark-mode .ast-box {
@@ -490,11 +496,13 @@ body.dark-mode .ast-box {
 body.dark-mode #error {
   background-color: #2a2a2a;
   border: 1px solid #e29578;
+  background-color: pink;
 }
 
 body.dark-mode .error-box {
   background-color: #2a2a2a;
   border: 1px solid #555;
+  background-color: #e29578;
 }
 
 .Lextext {
