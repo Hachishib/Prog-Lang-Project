@@ -109,10 +109,54 @@ document.addEventListener("DOMContentLoaded", function () {
     };
     let p = 0;
     let q = false;
+    let inComment = false;
+    let inMultilineComment = false;
 
     for (let i = 0; i < x.length; i++) {
       let ch = x.charAt(i);
-      if (ch === '"' || ch === "'") {
+
+      if (!q) {
+        if (ch === '/' && i + 1 < x.length && x.charAt(i + 1) === '/') {
+          inComment = true;
+          i++;
+          continue;
+        }
+        else if (ch === '/' && i + 1 < x.length && x.charAt(i + 1) === '*') {
+          inMultilineComment = true;
+          i++;
+          continue;
+        }
+        else if (inMultilineComment && ch === '*' && i + 1 < x.length && x.charAt(i + 1) === '/') {
+          inMultilineComment = false;
+          i++;
+          p = i + 1;
+          continue;
+        }
+        else if (inComment || inMultilineComment) {
+          if (inComment && (ch === '\n' || ch === '\r')) {
+            inComment = false;
+            p = i + 1;
+          }
+          continue;
+        }
+      }
+
+      // Handle preprocessor directives
+      if (!q && !inComment && !inMultilineComment && ch === '#' && (i === 0 || x.charAt(i-1) === '\n' || x.charAt(i-1) === '\r')) {
+        inPreprocessor = true;
+        p = i;
+        while (i + 1 < x.length && x.charAt(i + 1) !== '\n' && x.charAt(i + 1) !== '\r') {
+          i++;
+        }
+        preprocessor[markers.prepMarker++] = x.substring(p, i + 1);
+        tokens.push({ type: "preprocessor", value: x.substring(p, i + 1) });
+        inPreprocessor = false;
+        p = i + 1;
+        continue;
+      }
+
+      // Handle string literals
+      if ((ch === '"' || ch === "'") && !inComment && !inMultilineComment) {
         if (q) {
           if (x.charAt(i - 1) !== "\\") {
             q = !q;
