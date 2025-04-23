@@ -141,7 +141,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      // Handle preprocessor directives
       if (!q && !inComment && !inMultilineComment && ch === '#' && (i === 0 || x.charAt(i-1) === '\n' || x.charAt(i-1) === '\r')) {
         inPreprocessor = true;
         p = i;
@@ -155,7 +154,6 @@ document.addEventListener("DOMContentLoaded", function () {
         continue;
       }
 
-      // Handle string literals
       if ((ch === '"' || ch === "'") && !inComment && !inMultilineComment) {
         if (q) {
           if (x.charAt(i - 1) !== "\\") {
@@ -226,11 +224,11 @@ document.addEventListener("DOMContentLoaded", function () {
           tokens.push({ type: "operator", value: ch });
           p = i + 1;
         } else {
-          p = i + 1; // Skip whitespace
+          p = i + 1;
         }
       }
     }
-    // Handle any remaining token at the end
+
     if (p < x.length && !q) {
       processToken(
         x,
@@ -419,8 +417,6 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           ast.push(statement);
         } else {
-          // If parseStatement returns null, it usually indicates an error
-          // or end of input. We might want to add error handling here.
           if (this.tokens.length > 0) {
             this.addError(
               `Unrecognized token: ${this.tokens[0]?.value}`,
@@ -443,30 +439,25 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!this.consumeToken('class', 'Expected class keyword')) {
         return null;
       }
-      
-      // Get class name
+
       if (this.tokens[0]?.type !== 'identifier') {
         this.addError('Expected class name', ErrorType.SYNTAX);
         return null;
       }
       const className = this.tokens.shift().value;
-      
-      // Handle opening brace
+
       if (!this.consumeToken('{', 'Expected { after class name')) {
         return null;
       }
       
-      // Parse class body (methods, fields)
       const body = [];
-      this.pushScope(); // New scope for class
+      this.pushScope();
       
       while (this.tokens.length > 0 && this.tokens[0]?.value !== '}') {
-        // Check for methods (including main)
         if (this.isMethodDeclaration(this.tokens)) {
           const method = this.parseMethodDeclaration();
           if (method) body.push(method);
         } else {
-          // Try to parse as field declaration or other statement
           const stmt = this.parseStatement();
           if (stmt) body.push(stmt);
         }
@@ -486,28 +477,24 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     
     parseMethodDeclaration() {
-      // Handle modifiers (public, private, static)
       const modifiers = [];
       while (this.tokens.length > 0 && 
              ['public', 'private', 'static'].includes(this.tokens[0]?.value)) {
         modifiers.push(this.tokens.shift().value);
       }
-      
-      // Get return type
+
       if (this.tokens[0]?.type !== 'keyword' && this.tokens[0]?.type !== 'identifier') {
         this.addError('Expected return type', ErrorType.SYNTAX);
         return null;
       }
       const returnType = this.tokens.shift().value;
-      
-      // Get method name
+
       if (this.tokens[0]?.type !== 'identifier') {
         this.addError('Expected method name', ErrorType.SYNTAX);
         return null;
       }
       const methodName = this.tokens.shift().value;
-      
-      // Handle parameters
+
       if (!this.consumeToken('(', 'Expected ( after method name')) {
         return null;
       }
@@ -516,22 +503,20 @@ document.addEventListener("DOMContentLoaded", function () {
       while (this.tokens.length > 0 && this.tokens[0]?.value !== ')') {
         if (this.tokens[0]?.type === 'keyword' || 
             (this.tokens[0]?.type === 'identifier' && this.dataType(this.tokens[0]?.value))) {
-          // Parameter type
+
           const paramType = this.tokens.shift().value;
-          
-          // Parameter name
+
           if (this.tokens[0]?.type !== 'identifier') {
             this.addError('Expected parameter name', ErrorType.SYNTAX);
             break;
           }
           const paramName = this.tokens.shift().value;
-          
-          // Handle array syntax for parameters
+
           let isArray = false;
           if (this.tokens[0]?.value === '[' && this.tokens[1]?.value === ']') {
             isArray = true;
-            this.tokens.shift(); // [
-            this.tokens.shift(); // ]
+            this.tokens.shift();
+            this.tokens.shift();
           }
           
           parameters.push({
@@ -539,8 +524,7 @@ document.addEventListener("DOMContentLoaded", function () {
             name: paramName,
             isArray
           });
-          
-          // Handle comma between parameters
+
           if (this.tokens[0]?.value === ',') {
             this.tokens.shift();
           }
@@ -553,8 +537,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!this.consumeToken(')', 'Expected ) after parameters')) {
         return null;
       }
-      
-      // Parse method body
+
       const body = this.parseBlock();
       
       return {
@@ -613,7 +596,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const variable = this.lookupVariable(identifier.value);
       const parsedValue = this.parseLiteralOrExpression(value);
 
-      // Type checking
       if (
         variable &&
         parsedValue &&
@@ -651,18 +633,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (op.value === "+") {
           if (left.dataType === "String" || right.dataType === "String") {
-            // String concatenation is allowed
             left = {
               type: "BinaryExpression",
               left: left,
               operator: op.value,
               right: right,
-              dataType: "String", // Result is a string
+              dataType: "String",
             };
             continue;
           }
         }
-        // all other operators
         if (left.dataType === "String" || right.dataType === "String") {
           this.addError(
             `Bad operand '${op.value}' to be use in printing.`,
@@ -683,7 +663,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const keyword = this.tokens.shift();
       const identifier = this.tokens.shift();
 
-      // Consume up to semicolon
       if (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
         this.addError(
           `Unexpected token after declaration of '${identifier.value}'`,
@@ -752,9 +731,9 @@ document.addEventListener("DOMContentLoaded", function () {
             this.tokens[0]?.loc
           );
         }
-        if (!variable.initialized) {
+        if (!variable.assigned) {
           this.addError(
-            `Variable '${token.value}' is not initialized.`,
+            `Variable '${token.value}' is used before being assigned a value.`,
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
@@ -771,7 +750,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!this.isIfKeyword(this.tokens[0])) {
         return null;
       }
-      this.tokens.shift(); // Consume 'if'
+      this.tokens.shift();
       
       if (!this.consumeToken("(", "Expected '(' after 'if'")) {
         return null;
@@ -799,7 +778,7 @@ document.addEventListener("DOMContentLoaded", function () {
       
       let elseIfBranches = [];
       while (this.tokens[0]?.value === "else") {
-        this.tokens.shift(); // Consume 'else'
+        this.tokens.shift();
         if (this.isIfKeyword(this.tokens[0])) {
           const elseIfNode = this.parseIfStatement("else if");
           if (elseIfNode) {
@@ -826,8 +805,6 @@ document.addEventListener("DOMContentLoaded", function () {
         this.addError("Incomplete condition", ErrorType.SYNTAX);
         return null;
       }
-    
-      // Save the current token position in case we need to backtrack
       const savedTokens = [...this.tokens];
       
       // Try to parse a binary expression like i % 2
@@ -903,8 +880,7 @@ document.addEventListener("DOMContentLoaded", function () {
         right,
       };
     }
-    
-    // Add this helper method to parse simple expressions
+
     parseSimpleExpression() {
       if (this.tokens.length < 3) return null;
       
@@ -988,7 +964,7 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
-          this.tokens.shift(); // Skip unrecognized token to avoid infinite loop
+          this.tokens.shift();
         }
       }
       
@@ -999,7 +975,7 @@ document.addEventListener("DOMContentLoaded", function () {
           this.tokens[0]?.loc
         );
       } else {
-        this.tokens.shift(); // Consume '}'
+        this.tokens.shift();
       }
       
       this.popScope();
@@ -1027,7 +1003,7 @@ document.addEventListener("DOMContentLoaded", function () {
       objectParts.push(this.tokens.shift().value);
     
       while (this.tokens.length > 0 && this.tokens[0].value === ".") {
-        this.tokens.shift(); // Consume '.'
+        this.tokens.shift();
         objectParts.push(this.tokens.shift().value);
       }
       
@@ -1043,7 +1019,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const parsedArg = this.parseExpression();
         args.push(parsedArg);
     
-        if (this.tokens[0]?.value === ",") this.tokens.shift(); // Consume comma
+        if (this.tokens[0]?.value === ",") this.tokens.shift();
       }
       
       if (this.tokens.length === 0) {
@@ -1055,7 +1031,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return { type: "MethodCall", object, method, arguments: args };
       }
       
-      this.tokens.shift(); // Consume ')'
+      this.tokens.shift();
       
       if (this.tokens.length > 0) {
         this.consumeSemicolon(`Missing semicolon after method call to ${object}.${method}`);
@@ -1148,14 +1124,35 @@ document.addEventListener("DOMContentLoaded", function () {
         if (this.isAssignment(this.tokens)) {
           init = this.parseAssignment();
         } else {
-          // Skip initialization part
-          while (this.tokens.length > 0 && this.tokens[0].value !== ";") {
-            this.tokens.shift();
-          }
-          init = { type: "EmptyStatement" };
-          
-          if (!this.consumeToken(";", "Expected ';' after initialization in for loop")) {
-            return null;
+          if (this.tokens.length >= 3 && 
+              this.tokens[0]?.type === "identifier" && 
+              this.tokens[1]?.value === "=") {
+            
+            const identifier = this.tokens.shift().value;
+            this.tokens.shift(); // consume =
+            const valueToken = this.tokens.shift();
+            const value = this.parseLiteralOrExpression(valueToken);
+
+            this.assignVariable(identifier);
+            
+            init = {
+              type: "Assignment",
+              identifier: identifier,
+              value: value
+            };
+            
+            if (!this.consumeToken(";", "Expected ';' after initialization in for loop")) {
+              return null;
+            }
+          } else {
+            while (this.tokens.length > 0 && this.tokens[0].value !== ";") {
+              this.tokens.shift();
+            }
+            init = { type: "EmptyStatement" };
+            
+            if (!this.consumeToken(";", "Expected ';' after initialization in for loop")) {
+              return null;
+            }
           }
         }
         
@@ -1280,7 +1277,6 @@ document.addEventListener("DOMContentLoaded", function () {
             return null;
 
           const body = [];
-          // Parse until next case/default/close-brace
           while (
             this.tokens[0] &&
             !["case", "default", "}"].includes(this.tokens[0].value)
@@ -1289,7 +1285,6 @@ document.addEventListener("DOMContentLoaded", function () {
             if (stmt) body.push(stmt);
           }
 
-          // Check if the case body ends with a break statement and add a semantic error if not
           if (
             body.length > 0 &&
             body[body.length - 1]?.type !== "BreakStatement"
@@ -1394,29 +1389,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     isMethodDeclaration(tokens) {
-      // Check for modifiers followed by return type and identifier
       let i = 0;
       while (i < tokens.length && 
              ['public', 'private', 'static'].includes(tokens[i]?.value)) {
         i++;
       }
-      
-      // Check for return type (could be a keyword or identifier)
+
       if (i < tokens.length && 
           (tokens[i]?.type === 'keyword' || tokens[i]?.type === 'identifier')) {
         i++;
       } else {
         return false;
       }
-      
-      // Check for method name
+
       if (i < tokens.length && tokens[i]?.type === 'identifier') {
         i++;
       } else {
         return false;
       }
-      
-      // Check for opening parenthesis
+
       return i < tokens.length && tokens[i]?.value === '(';
     }
 
@@ -1471,14 +1462,19 @@ document.addEventListener("DOMContentLoaded", function () {
         );
         return false;
       }
-      currentScope[identifier] = { type, initialized: false };
+      currentScope[identifier] = { 
+        type, 
+        declared: true, 
+        assigned: false, 
+        assignments: []
+      };
       return true;
     }
 
     assignVariable(identifier) {
       for (let i = this.symbolTable.length - 1; i >= 0; i--) {
         if (this.symbolTable[i][identifier]) {
-          this.symbolTable[i][identifier].initialized = true;
+          this.symbolTable[i][identifier].assigned = true;
           return;
         }
       }
@@ -1494,7 +1490,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return this.symbolTable[i][identifier];
         }
       }
-      return null; // Variable not found
+      return null;
     }
 
     addError(message, type = ErrorType.SYNTAX, location = null) 
@@ -1538,9 +1534,9 @@ document.addEventListener("DOMContentLoaded", function () {
           );
         } else {
           left.dataType = varInfo.type;
-          if (!varInfo.initialized) {
+          if (!varInfo.assigned) {
             this.addError(
-              `Variable '${left.value}' used in condition before initialization`,
+              `Variable '${left.value}' used in before being assigned a value.`,
               ErrorType.SEMANTIC
             );
           }
@@ -1556,9 +1552,9 @@ document.addEventListener("DOMContentLoaded", function () {
           );
         } else {
           right.dataType = varInfo.type;
-          if (!varInfo.initialized) {
+          if (!varInfo.assigned) {
             this.addError(
-              `Variable '${right.value}' used in condition before initialization`,
+              `Variable '${right.value}' used in condition before assignment.`,
               ErrorType.SEMANTIC
             );
           }
