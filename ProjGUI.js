@@ -929,53 +929,63 @@ document.addEventListener("DOMContentLoaded", function () {
       const statements = [];
       
       while (this.tokens.length > 0 && this.tokens[0]?.value !== "}") {
+        // First check for specific statement types
         if (this.isLoopKeyword(this.tokens[0])) {
           const loopStatement = this.parseLoop(this.tokens[0].value);
-          this.handleParsedStatement(
-            loopStatement,
-            `Failed to parse ${this.tokens[0].value} loop`,
-            statements
-          );
-        } else if (this.isAssignment(this.tokens)) {
-          const assignment = this.parseAssignment();
-          this.handleParsedStatement(
-            assignment,
-            `Invalid assignment`,
-            statements
-          );
-        } else if (this.isIfKeyword(this.tokens[0])) {
+          if (loopStatement) statements.push(loopStatement);
+          else this.addError("Failed to parse loop statement", ErrorType.SYNTAX);
+        } 
+        else if (this.isIfKeyword(this.tokens[0])) {
           const ifStatement = this.parseIfStatement();
-          this.handleParsedStatement(
-            ifStatement,
-            `Failed to parse if statement`,
-            statements
-          );
-        } else if (this.isMethodCall(this.tokens)) {
+          if (ifStatement) statements.push(ifStatement);
+          else this.addError("Failed to parse if statement", ErrorType.SYNTAX);
+        }
+        // Check for method calls (object.method())
+        else if (this.isMethodCall(this.tokens)) {
           const methodCall = this.parseMethodCall();
           if (methodCall) statements.push(methodCall);
-        } else if (this.tokens.length >= 3) {
-          const expr = this.parseExpression();
-          this.handleParsedStatement(expr, `Invalid expression`, statements);
-        } else if (this.tokens[0]?.value === ";") {
-          this.tokens.shift(); // Skip empty statements
-        } else {
-          this.addError(
-            `Unrecognized token in block: ${this.tokens[0]?.value}`,
-            ErrorType.SYNTAX,
-            this.tokens[0]?.loc
-          );
-          this.tokens.shift();
+          else this.addError("Failed to parse method call", ErrorType.SYNTAX);
+        }
+        // Check for assignments with type declarations (int x = 5)
+        else if (this.isAssignment(this.tokens)) {
+          const assignment = this.parseAssignment();
+          if (assignment) statements.push(assignment);
+          else this.addError("Failed to parse assignment", ErrorType.SYNTAX);
+        }
+        // Check for increment/decrement operations (x++ or ++x)
+        else if (this.tokens.length >= 2 && 
+                 this.tokens[0]?.type === "identifier" &&
+                 (this.tokens[1]?.value === "++" || this.tokens[1]?.value === "--")) {
+          const iteration = this.parseIteration();
+          if (iteration) {
+            statements.push(iteration);
+            this.consumeSemicolon("Expected semicolon after increment/decrement");
+          }
+        }
+        // Try to parse as a general expression
+        else if (this.tokens.length > 0) {
+          // Handle empty statements (just a semicolon)
+          if (this.tokens[0]?.value === ";") {
+            this.tokens.shift();
+            continue;
+          }
+          
+          try {
+            const expr = this.parseStatement();
+            if (expr) statements.push(expr);
+          } catch (e) {
+            this.addError(`Error parsing statement: ${e.message}`, ErrorType.SYNTAX);
+            while (this.tokens.length > 0 && this.tokens[0]?.value !== ";" && this.tokens[0]?.value !== "}") {
+              this.tokens.shift();
+            }
+            if (this.tokens[0]?.value === ";") this.tokens.shift();
+          }
         }
       }
-      
       if (this.tokens.length === 0) {
-        this.addError(
-          "Unclosed block: Missing '}'",
-          ErrorType.SYNTAX,
-          this.tokens[0]?.loc
-        );
+        this.addError("Unclosed block: Missing '}'", ErrorType.SYNTAX);
       } else {
-        this.tokens.shift();
+        this.tokens.shift(); // Consume '}'
       }
       
       this.popScope();
@@ -993,6 +1003,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (this.isMethodCall(this.tokens)) return this.parseMethodCall();
       if (this.isDeclaration(this.tokens)) return this.parseDeclaration();
       if (this.isSwitchKeyword(this.tokens[0])) return this.parseSwitchStatement();
+      if (["break", "continue", "return"].includes(this.tokens[0]?.value)) return this.parseExitStatement();
 
       const expr = this.parseExpression();
       return expr;
@@ -1306,6 +1317,16 @@ document.addEventListener("DOMContentLoaded", function () {
             const stmt = this.parseStatement();
             if (stmt) body.push(stmt);
           }
+          if (
+            body.length > 0 &&
+            body[body.length - 1]?.type !== "BreakStatement"
+          ) {
+            this.addError(
+              "Expected 'break;' at the end of case",
+              ErrorType.SEMANTIC,
+              this.tokens[0]?.loc
+            );
+          }
           defaultCase = { type: "DefaultClause", body };
         } else {
           this.addError(
@@ -1326,12 +1347,36 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     }
 
+    parseExitStatement() {
+      const statementType = this.tokens[0].value;
+      this.tokens.shift(); // Consume 'break', 'continue', or 'return'
+      
+      let value = null;
+      // For return statements, we might have a return value
+      if (statementType === "return" && this.tokens[0]?.value !== ";") {
+        value = this.parseExpression();
+      }
+      
+      this.consumeSemicolon(`Expected semicolon after ${statementType}`);
+      
+      if (statementType === "break") {
+        return { type: "BreakStatement" };
+      } else if (statementType === "continue") {
+        return { type: "ContinueStatement" };
+      } else {
+        return { type: "ReturnStatement", value };
+      }
+    }
+
     isValidComparisonOperator(op) {
       const validOperators = ["==", "!=", "<", ">", "<=", ">="];
       return validOperators.includes(op);
     }
 
     isValidAssignment(value, expectedType) {
+      if (value.type === "Variable") {
+        return value.dataType === expectedType;
+      }
       if (expectedType === "int") return isInteger(value.value);
       if (expectedType === "float") return isFloat(value.value);
       if (expectedType === "String") return value.dataType === "String";
@@ -1373,11 +1418,42 @@ document.addEventListener("DOMContentLoaded", function () {
       return token?.type === "keyword" && token?.value === "if";
     }
 
+    isExitStatement(token) {
+      return token?.type === "keyword" && ["break", "continue", "return"].includes(token?.value);
+    }
+
     isMethodCall(tokens) {
-      return (
-        tokens[0]?.type === "identifier" &&
-        tokens.some((token) => token.value === "(")
-      );
+      if (tokens.length < 3) return false;
+      
+      // Simple case: identifier followed by (
+      if (tokens[0]?.type === "identifier" && tokens[1]?.value === "(") {
+        return true;
+      }
+      
+      // More complex case: identifier.identifier...( pattern
+      let i = 0;
+      if (tokens[i]?.type !== "identifier") return false;
+      
+      i++;
+      while (i < tokens.length - 1) {
+        if (tokens[i]?.value === ".") {
+          i++;
+          if (tokens[i]?.type === "identifier") {
+            i++;
+            if (tokens[i]?.value === "(") {
+              return true;
+            }
+          } else {
+            return false;
+          }
+        } else if (tokens[i]?.value === "(") {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      
+      return false;
     }
 
     isClassDeclaration(tokens) 
