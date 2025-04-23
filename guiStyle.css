@@ -4,17 +4,17 @@
     display: inline-block;
     margin-left: 10px;
     vertical-align: middle;
-  }
-  
-  /* Loader */
-  #loader {
+  }  
+
+/* Loader */
+#loader {
     position: fixed;
     width: 100%;
     height: 100%;
-    background-color: #edf6f9; /* background */
+    background-color: #EDF6F9;  /* background */
     top: 0;
     left: 0;
-    z-index: 9999;
+    z-index: 9999; 
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -26,8 +26,8 @@
   
   /* Spinner */
   .spinner {
-    border: 6px solid #ffffff;
-    border-top: 6px solid #008c48;
+    border: 6px solid #ffffff; 
+    border-top: 6px solid #008c48; 
     border-radius: 50%;
     width: 50px;
     height: 50px;
@@ -36,12 +36,8 @@
   }
   
   @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
   
   #main-content {
@@ -56,20 +52,20 @@
   }
   
   body.loaded #main-content {
-    display: block;
+    display: block; 
     visibility: visible;
     opacity: 1;
   }
   
-  /* navigation */
-  .no-js-nav {
+/* navigation */
+.no-js-nav {
     display: flex;
     justify-content: center;
     align-items: flex-start;
     gap: 20px;
     background-color: #83c5bf81;
     padding: 10px;
-    border-bottom: 2px solid #83c5be;
+    border-bottom: 2px solid #83C5BE;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     flex-wrap: wrap;
   }
@@ -109,7 +105,7 @@
     background: #ffffff;
     border: 1px solid #999;
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     z-index: 10;
     min-width: 200px;
     font-size: 12px;
@@ -138,18 +134,18 @@
   .no-js-share:hover {
     background-color: #fb9393;
     color: #000000;
-  }
-  
-  * {
+  }  
+
+* {
     /* Box sa loob ng container   */
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: tahoma, sans-serif;
     font-size: large;
-  }
-  
-  .popup-content label {
+}
+
+.popup-content label {
     display: block;
     font-size: 13px;
     font-weight: bold;
@@ -184,155 +180,134 @@
     background-color: #fb9393;
     color: #000;
   }
-  
+
   #fileModal,
   #helpModal,
   #aboutModal {
     display: none !important;
   }
   
-  body {
+body {
     padding: 20px;
-    background-color: #edf6f9;
-  }
-  
-  .Title {
+    background-color: #EDF6F9;
+}
+
+.Title {
     display: flex;
     justify-content: space-between;
     align-items: center;
     border: 1px solid #999;
     padding: 10px;
     margin-bottom: 20px;
-  }
-  
-  .Title p {
+}
+
+.Title p {
     /* header size */
     font-size: 12px;
-  }
-  
-  .icon {
+}
+
+.icon {
     /* Div ng both icon  */
     display: flex;
     gap: 5px;
-    position: absolute;
-    right: 30px;
-    top: 27px;
-  }
-  
-  #toggleMode {
-    background-color: #ffffff;
-    color: #333;
-    border: 1px solid #999;
-    border-radius: 10px;
-    padding: 8px 15px;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-  }
-  
-  #toggleMode:hover {
-    background-color: #fb9393;
-    color: #000;
-  }
-  
-  .container {
+}
+
+.container {
     /* Container  ng both Enter line code & Conversion */
     display: flex;
-  
+
     justify-content: space-between;
     gap: 20px;
-  }
-  
-  .box {
+}
+
+.box {
     flex: 1;
     border: 1px solid #333;
     border-radius: 15px;
     padding: 10px;
-    background-color: #83c5be;
-  }
-  
-  .box label {
+    background-color: #83C5BE;
+}
+
+.box label {
     /*Font ng nasa upper   */
     display: block;
     font-size: 10px;
     margin-bottom: 5px;
-  }
-  
-  .text {
+}
+
+.text {
     /* Font ng nasa loob ng Enter the line of code  */
     width: 100%;
     height: 400px;
     border: 1px solid #999;
     resize: none;
     padding: 10px;
-    font-size: 17px;
-    font-weight: bold;
-  }
-  
-  #inputWrite {
-    border: 2px solid #2c3e50;
-    border-radius: 15px; /* Rounded corners */
-    height: 590px; /* adjust height */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
-    padding: 20px;
-    background-color: #edf6f9;
-  }
-  
-  #outputWrite {
+    font-size: 14px;
+}
+
+#inputWrite{
     border: 2px solid #2c3e50;
     border-radius: 15px; /* Rounded corners */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
     padding: 20px;
-    height: 590px; /* adjust height */
-    background-color: #edf6f9;
-    pointer-events: none;
-  }
-  
-  /* labels for each boxes! >>*/
-  label[for="inputWrite"] {
+    background-color: #EDF6F9;
+}
+
+#outputWrite{
+    border: 2px solid #2c3e50;
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
+    padding: 20px;
+    height: 790px; /* adjust height potek maliit pala pag 3d yung box, need iadjust height*/
+    background-color: #EDF6F9;
+}
+
+/* labels for each boxes! >>*/
+label[for="inputWrite"] {
     font-size: 13px;
-    font-family: "Tahoma", sans-serif;
+    font-family: 'Tahoma', sans-serif;
     font-weight: bold;
     color: #333;
     margin-top: 5px;
     margin-bottom: 10px;
-  }
-  
-  label[for="outputWrite"] {
-    font-size: 13px;
-    font-family: "Tahoma", sans-serif;
+}
+
+label[for="outputWrite"] {
+    font-size: 13px; 
+    font-family: 'Tahoma', sans-serif;
     font-weight: bold;
     color: #333;
     margin-top: 5px;
     margin-bottom: 10px;
-  }
-  
-  #ast label {
+}
+
+#ast label {
     font-size: 13px;
-    font-family: "Tahoma", sans-serif;
+    font-family: 'Tahoma', sans-serif;
     font-weight: bold;
     color: #333;
     margin-top: 5px;
     margin-bottom: 10px;
-  }
-  
-  #error label {
+}
+
+#error label {
     font-size: 13px;
-    font-family: "Tahoma", sans-serif;
+    font-family: 'Tahoma', sans-serif;
     font-weight: bold;
     color: #333;
     margin-top: 10px;
     margin-bottom: 10px;
-  }
-  
-  .button-layer {
+}
+
+.button-layer {
     /* Position ng convert button  */
     margin-top: 20px;
     display: flex;
     justify-content: center;
-  }
-  
-  .convert-button {
-    background-color: #ff6b6b;
+}
+
+.convert-button {
+    background-color: #FF6B6B;
     color: white;
     border: none;
     padding: 12px 30px;
@@ -342,47 +317,47 @@
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: all 0.3s ease;
-  }
-  
-  .convert-button:hover {
-    background-color: #e63946;
+}
+
+.convert-button:hover {
+    background-color: #E63946;
     transform: translateY(-2px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  }
-  
-  .convert-button:active {
+}
+
+.convert-button:active {
     transform: scale(0.98);
-  }
-  
-  .close-css:hover {
+}
+
+.close-css:hover {
     color: #000;
-  }
-  
-  #ast {
+}
+
+#ast {
     background-color: pink;
     border-radius: 15px;
-  }
-  
-  .ast-box {
+}
+
+.ast-box {
     border: 2px solid #2c3e50;
     border-radius: 15px; /* Rounded corners */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
     padding: 20px;
-    height: 1225px; /* adjust height potek maliit pala pag 3d yung box, need iadjust height*/
+    height: 1250px; /* adjust height potek maliit pala pag 3d yung box, need iadjust height*/
     background-color: #f8d5d5; /* bg color */
     font-size: 17px;
-    overflow: auto;
-  }
-  
-  .error-container {
+}
+
+.ast-container {
     margin-top: 10px;
-  }
-  
-  #error {
-    background-color: #e29578;
+}
+
+#error {
+    background-color: #E29578;
     border-radius: 15px;
-  }
-  .error-box {
+}
+.error-box {
+    padding-top: 10px;
     border: 2px solid #2c3e50;
     border-radius: 15px; /* Rounded corners */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
@@ -390,126 +365,4 @@
     height: 200px;
     overflow: auto;
     background-color: blanchedalmond;
-  }
-  
-  body.dark-mode {
-    background-color: #121212;
-    color: #ffffff;
-  }
-  
-  body.dark-mode .top-nav {
-    background-color: #1e1e1e;
-    border-bottom: 2px solid #333;
-  }
-  
-  body.dark-mode .nav-popup summary {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-  }
-  
-  body.dark-mode .nav-popup summary:hover {
-    background-color: #999999;
-  }
-  
-  body.dark-mode .no-js-share {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-  }
-  
-  body.dark-mode .box {
-    background-color: #2a2a2a;
-    border: 1px solid #83c5be;
-    border: 1px solid #333;
-    background-color: #83c5be;
-  }
-  
-  body.dark-mode .popup-content {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-  }
-  
-  body.dark-mode .popup-content a {
-    color: #e0e0e0;
-  }
-  
-  body.dark-mode .popup-content a:hover {
-    color: #ffffff;
-  }
-  
-  body.dark-mode #toggleMode {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-    border: 1px solid #555;
-  }
-  
-  body.dark-mode #toggleMode:hover {
-    background-color: #fb9393;
-    background-color: #2a2a2a;
-    color: #000;
-  }
-  
-  body.dark-mode .text {
-    background-color: #1c1c1c;
-    color: #e0e0e0;
-    border: 1px solid #555;
-  }
-  
-  body.dark-mode label[for="inputWrite"],
-  body.dark-mode label[for="outputWrite"],
-  body.dark-mode #ast label,
-  body.dark-mode #error label {
-    color: #e0e0e0;
-    color: #1c1c1c;
-  }
-  
-  body.dark-mode #inputWrite {
-    background-color: #1c1c1c;
-    color: #e0e0e0;
-    border: 1px solid #555;
-  }
-  
-  body.dark-mode #outputWrite {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-    border: 1px solid #555;
-  }
-  
-  body.dark-mode .convert-button {
-    background-color: #999999;
-  }
-  
-  body.dark-mode .convert-button:hover {
-    background-color: #e63946;
-  }
-  
-  body.dark-mode #ast {
-    background-color: #2a2a2a;
-    border: 1px solid #f8d5d5;
-    background-color: pink;
-  }
-  
-  body.dark-mode .ast-box {
-    background-color: #2a2a2a;
-    border: 1px solid #555;
-  }
-  
-  body.dark-mode #error {
-    background-color: #2a2a2a;
-    border: 1px solid #e29578;
-    background-color: #e29578;
-  }
-  
-  body.dark-mode .error-box {
-    background-color: #2a2a2a;
-    border: 1px solid #555;
-  }
-  
-  .Lextext {
-    /* Font ng nasa loob ng Enter the line of code  */
-    width: 100%;
-    height: 400px;
-    border: 1px solid #999;
-    resize: none;
-    padding: 10px;
-    font-size: 25px;
-  }
+}
