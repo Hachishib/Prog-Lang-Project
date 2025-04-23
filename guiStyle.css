@@ -1,0 +1,491 @@
+
+.header-image {
+    width: 300px;
+    height: auto;
+    display: inline-block;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+/* Loader */
+#loader {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-color: #EDF6F9;  /* background */
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    color: #333;
+    animation: loaderDisplay 3s ease-out forwards; /*visible for 3 secs */
+}
+
+/* Spinner */
+.spinner {
+    border: 6px solid #ffffff;
+    border-top: 6px solid #008c48;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#main-content {
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out, visibility 0s 0.5s; /* Fade-in and fade-out */
+}
+
+body.loaded #loader {
+    display: none;
+}
+
+body.loaded #main-content {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* navigation */
+.no-js-nav {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+    background-color: #83c5bf81;
+    padding: 10px;
+    border-bottom: 2px solid #83C5BE;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
+}
+
+.nav-popup {
+    position: relative;
+    border: none;
+}
+
+.nav-popup summary {
+    list-style: none;
+    background-color: #ffffff;
+    border: 1px solid #999;
+    border-radius: 10px;
+    padding: 8px 15px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.nav-popup summary:hover {
+    background-color: #fb9393;
+    color: #000;
+}
+
+.popup-content {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid #999;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 10;
+    min-width: 200px;
+    font-size: 12px;
+}
+
+.nav-popup summary::-webkit-details-marker {
+    display: none;
+}
+
+/* share button (optional) */
+.no-js-share {
+    background-color: #ffffff;
+    border: 1px solid #999;
+    border-radius: 10px;
+    padding: 8px 15px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.no-js-share:hover {
+    background-color: #fb9393;
+    color: #000000;
+}
+
+* {
+    /* Box sa loob ng container   */
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: tahoma, sans-serif;
+    font-size: large;
+}
+
+.popup-content label {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.popup-content input[type="file"] {
+    display: block;
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #999;
+    border-radius: 8px;
+    background-color: #f8f8f8;
+    margin-bottom: 12px;
+    cursor: pointer;
+}
+
+.popup-content a.download-link {
+    display: inline-block;
+    padding: 6px 12px;
+    background-color: #ffffff;
+    border: 1px solid #999;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    text-decoration: none;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.popup-content a.download-link:hover {
+    background-color: #fb9393;
+    color: #000;
+}
+
+#fileModal,
+#helpModal,
+#aboutModal {
+    display: none !important;
+}
+
+body {
+    padding: 20px;
+    background-color: #EDF6F9;
+}
+
+.Title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #999;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.Title p {
+    /* header size */
+    font-size: 12px;
+}
+
+.icon {
+    /* Div ng both icon  */
+    display: flex;
+    gap: 5px;
+    position: absolute;
+    right: 30px;
+    top: 27px;
+}
+
+#toggleMode {
+    background-color: #ffffff;
+    color: #333;
+    border: 1px solid #999;
+    border-radius: 10px;
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#toggleMode:hover {
+    background-color: #2A2A2A;
+    color: #000;
+}
+
+.container {
+    /* Container  ng both Enter line code & Conversion */
+    display: flex;
+
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.box {
+    flex: 1;
+    border: 1px solid #333;
+    border-radius: 15px;
+    padding: 10px;
+    background-color: #83C5BE;
+}
+
+.box label {
+    /*Font ng nasa upper   */
+    display: block;
+    font-size: 10px;
+    margin-bottom: 5px;
+}
+
+.text {
+    /* Font ng nasa loob ng Enter the line of code  */
+    width: 100%;
+    height: 400px;
+    border: 1px solid #999;
+    resize: none;
+    padding: 10px;
+    font-size: 14px;
+}
+
+#inputWrite{
+    border: 2px solid #2c3e50;
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
+    padding: 20px;
+    background-color: #EDF6F9;
+}
+
+#outputWrite{
+    border: 2px solid #2c3e50;
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
+    padding: 20px;
+    height: 790px; /* adjust height */
+    background-color: #EDF6F9;
+    pointer-events: none;
+}
+
+/* labels for each boxes! >>*/
+label[for="inputWrite"] {
+    font-size: 13px;
+    font-family: 'Tahoma', sans-serif;
+    font-weight: bold;
+    color: #333;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+label[for="outputWrite"] {
+    font-size: 13px;
+    font-family: 'Tahoma', sans-serif;
+    font-weight: bold;
+    color: #333;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+#ast label {
+    font-size: 13px;
+    font-family: 'Tahoma', sans-serif;
+    font-weight: bold;
+    color: #333;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+#error label {
+    font-size: 13px;
+    font-family: 'Tahoma', sans-serif;
+    font-weight: bold;
+    color: #333;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.button-layer {
+    /* Position ng convert button  */
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.convert-button {
+    background-color: #FF6B6B;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 30px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.convert-button:hover {
+    background-color: #E63946;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.convert-button:active {
+    transform: scale(0.98);
+}
+
+.close-css:hover {
+    color: #000;
+}
+
+#ast {
+    background-color: pink;
+    border-radius: 15px;
+}
+
+.ast-box {
+    border: 2px solid #2c3e50;
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
+    padding: 20px;
+    height: 1250px; /* adjust height potek maliit pala pag 3d yung box, need iadjust height*/
+    background-color: #f8d5d5; /* bg color */
+    font-size: 17px;
+}
+
+.ast-container {
+    margin-top: 10px;
+}
+
+#error {
+    background-color: #E29578;
+    border-radius: 15px;
+}
+.error-box {
+    border: 2px solid #2c3e50;
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 3D effect nyenye*/
+    padding: 20px;
+    height: 200px;
+    overflow: auto;
+    background-color: blanchedalmond;
+}
+
+body.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+body.dark-mode .top-nav {
+    background-color: #1E1E1E;
+    border-bottom: 2px solid #333;
+}
+
+body.dark-mode .nav-popup summary {
+    background-color: #2A2A2A;
+    color: #E0E0E0;
+}
+
+body.dark-mode .nav-popup summary:hover {
+    background-color: #999999;
+}
+
+body.dark-mode .no-js-share {
+    background-color: #2A2A2A;
+    color: #E0E0E0;
+}
+
+body.dark-mode .box {
+    border: 1px solid #333;
+    background-color: #83C5BE;
+}
+
+body.dark-mode .popup-content {
+    background-color: #2A2A2A;
+    color: #E0E0E0;
+}
+
+body.dark-mode .popup-content a {
+    color: #E0E0E0;
+}
+
+body.dark-mode .popup-content a:hover {
+    color: #ffffff;
+}
+
+body.dark-mode #toggleMode {
+    background-color: #2A2A2A;
+    color: #E0E0E0;
+    border: 1px solid #555;
+}
+
+body.dark-mode #toggleMode:hover {
+    background-color: #ffffff;
+}
+
+body.dark-mode .text {
+    background-color: #1C1C1C;
+    color: #E0E0E0;
+    border: 1px solid #555;
+}
+
+body.dark-mode label[for="inputWrite"],
+body.dark-mode label[for="outputWrite"],
+body.dark-mode #ast label,
+body.dark-mode #error label {
+    color: #1C1C1C;
+}
+
+body.dark-mode #inputWrite{
+    background-color: #1C1C1C;
+    color: #E0E0E0;
+    border: 1px solid #555;
+}
+
+body.dark-mode #outputWrite{
+    background-color: #2A2A2A;
+    color: #E0E0E0;
+    border: 1px solid #555;
+}
+
+body.dark-mode .convert-button {
+    background-color: #999999;
+}
+
+body.dark-mode .convert-button:hover {
+    background-color: #E63946;
+}
+
+body.dark-mode #ast {
+    background-color: pink;
+}
+
+body.dark-mode .ast-box {
+    background-color: #2A2A2A;
+    border: 1px solid #555;
+}
+
+body.dark-mode #error {
+    background-color: #E29578;
+}
+
+body.dark-mode .error-box {
+    background-color: #2A2A2A;
+    border: 1px solid #555;
+}
+

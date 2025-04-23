@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-
     <nav class="top-nav no-js-nav">
         <details class="nav-popup">
             <summary><i class="fas fa-file"></i> File</summary>
@@ -42,6 +41,99 @@
             3. Nano, Lady Charlote A. <br>
             4. Monterde, Mae Ann D. <br>
             5. Ngoho, John Paul <br>
+        </div>
+    </details>
+
+    <button class="no-js-share"><i class="fas fa-share-alt"></i> Share</button>
+
+    <div class="icon">
+        <button class="button" id="toggleMode">☀️</button>
+    </div>
+
+</nav>
+
+<!-- Loader -->
+<div id="loader">
+    <div class="spinner"></div>
+    <img src="header.png" alt="Lexer Analyzer Header" class="header-image" />
+</div>
+
+<div id="main-content">
+    <header class="header">
+        <img src="header.png" alt="Lexer Analyzer Header" class="header-image" />
+    </header>
+    <!-- more content -->
+</div>
+
+<script>
+    setTimeout(() => {
+        document.body.classList.add('loaded');
+    }, 3000);
+</script>
+
+<!-- Main Content -->
+<div class="container">
+    <div class="box">
+        <label for="inputWrite">ENTER YOUR CODE</label>
+        <textarea id="inputWrite" class="text"></textarea>
+        <label for="outputWrite">LEXICAL ANALYSIS</label>
+        <textarea id="outputWrite" class="text" readonly></textarea>
+    </div>
+    <div id="ast" class="box">
+        <label>ABSTRACT SYNTAX TREE</label>
+        <pre id="astOutput" class="ast-box"></pre>
+    </div>
+</div>
+
+<div class="ast-container">
+    <div id="error" class="box">
+        <label>ERRORS</label>
+        <div id="errorOutput" class="error-box"></div>
+    </div>
+</div>
+
+<div class="button-layer">
+    <button class="convert-button">CONVERT</button>
+</div>
+
+<div id="fileModal" class="modal-css">
+    <div class="modal-content-css">
+        <a href="#" class="close-css">&times;</a>
+        <h3>File Menu</h3>
+        <p>Upload and save options will go here.</p>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-css">
+    <div class="modal-content-css">
+        <a href="#" class="close-css">&times;</a>
+        <h3>Help</h3>
+        <p>Paste your code in the box and click Convert to analyze it.</p>
+    </div>
+</div>
+
+<div id="aboutModal" class="modal-css">
+    <div class="modal-content-css">
+        <a href="#" class="close-css">&times;</a>
+        <h3>About</h3>
+        <p>Lexer Analyzer by Program.M7 💻</p>
+    </div>
+</div>
+
+<script src="Proj.js"></script>
+<script>
+    const toggleButton = document.getElementById('toggleMode');
+    isDarkMode = false;
+
+    toggleButton.addEventListener('click', function(){
+        isDarkMode = !isDarkMode;
+        document.body.classList.toggle('dark-mode', isDarkMode);
+        toggleButton.textContent = isDarkMode ? '🌙' : '☀️' ; /* para magchange icon */
+    });
+</script>
+</body>
+</html>
+=======
           </div>
         </details>
       
