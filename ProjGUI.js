@@ -1165,63 +1165,59 @@ class Parser
     }
 
     parseSwitchStatement() 
+  {
+    this.tokens.shift(); // Consume 'switch'
+    if (!this.consumeToken("(", "Expected ( after switch")) return null;
+    const expression = this.parseExpression();
+    if (!this.consumeToken(")", "Expected ) after switch expression")) return null;
+    if (!this.consumeToken("{", "Expected { after switch expression")) return null;
+
+    const cases = [];
+    let defaultCase = null;
+
+    while (this.tokens.length > 0 && this.tokens[0]?.value !== "}") 
     {
-      this.tokens.shift(); // Consume 'switch'
-      if (!this.consumeToken("(", "Expected ( after switch")) return null;
-      const expression = this.parseExpression();
-      if (!this.consumeToken(")", "Expected ) after switch expression")) return null;
-      if (!this.consumeToken("{", "Expected { after switch")) return null;
-
-      const cases = [];
-      let defaultCase = null;
-
-      while (this.tokens[0]?.value !== "}") 
+      if (this.tokens[0]?.value === "case") 
       {
-        const token = this.tokens[0];
-        if (token.value === "case") 
-        {
-          this.tokens.shift();
-          const value = this.parseExpression();
-          if (!this.consumeToken(":", "Expected : after case value")) return null;
-          const body = [];
-          while (this.tokens[0] && !["case", "default", "}"].includes(this.tokens[0].value)) 
-          {
-            const stmt = this.parseStatement();
-            if (stmt) body.push(stmt);
-          }
+        this.tokens.shift(); // Consume 'case'
+        const condition = this.parseExpression();
+        if (!condition) return null;
+        if (!this.consumeToken(":", "Expected : after case condition")) return null;
 
-          if (body.length > 0 && body[body.length - 1]?.type !== "BreakStatement") 
-          {
-            this.addError("Expected 'break;' at the end of case", ErrorType.SEMANTIC, this.tokens[0]?.loc);
-          }
-          cases.push({ type: "CaseClause", value, body });
-        } 
-        else if (token.value === "default") 
+        const body = [];
+        while (this.tokens.length > 0 && this.tokens[0]?.value !== "case" && this.tokens[0]?.value !== "default" && this.tokens[0]?.value !== "}") 
         {
-          this.tokens.shift();
-          if (!this.consumeToken(":", "Expected : after default")) return null;
-          const body = [];
-          while (this.tokens[0] && this.tokens[0].value !== "}") 
-          {
-            const stmt = this.parseStatement();
-            if (stmt) body.push(stmt);
-          }
-          if (body.length > 0 && body[body.length - 1]?.type !== "BreakStatement") 
-          {
-            this.addError("Expected 'break;' at the end of case", ErrorType.SEMANTIC, this.tokens[0]?.loc);
-          }
-          defaultCase = { type: "DefaultClause", body };
-        } 
-        else 
-        {
-          this.addError(`Unexpected token: ${token.value}`, ErrorType.SYNTAX, token.loc);
-          this.tokens.shift();
+          const statement = this.parseStatement();
+          if (!statement) return null;
+          body.push(statement);
         }
-      }
+        cases.push({ type: "CaseStatement", condition, body });
+      } 
+      else if (this.tokens[0]?.value === "default") 
+      {
+        this.tokens.shift(); // Consume 'default'
+        if (!this.consumeToken(":", "Expected : after default keyword")) return null;
 
-      this.consumeToken("}", "Expected closing brace for switch");
-      return {type: "SwitchStatement", expression, cases, default: defaultCase,};
+        const body = [];
+        while (this.tokens.length > 0 && this.tokens[0]?.value !== "case" && this.tokens[0]?.value !== "default" && this.tokens[0]?.value !== "}") 
+        {
+          const statement = this.parseStatement();
+          if (!statement) return null;
+          body.push(statement);
+        }
+        defaultCase = { type: "DefaultStatement", body };
+      } 
+      else 
+      {
+        this.addError("Invalid statement inside switch block", ErrorType.SYNTAX);
+        return null;
+      }
     }
+
+    if (!this.consumeToken("}", "Expected } to close switch statement")) return null;
+
+    return { type: "SwitchStatement", expression, cases, defaultCase };
+  }
 
     parseExitStatement() 
     {
