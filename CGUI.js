@@ -1,4 +1,3 @@
-
 const inputWrite = document.getElementById("inputWrite");
 const outputWrite = document.getElementById("outputWrite");
 const astOutput = document.getElementById("astOutput");
@@ -85,7 +84,7 @@ convertButton.addEventListener("click", () => {
   displayErrors(results.errors);
 });
 
-function analyzeAndParse(input) {
+function analyzeAndParseC(input) {
   // Simulating the lexical analysis and AST generation
   let lexOutput = "";
   let ast = [];
@@ -114,9 +113,9 @@ function analyzeC(input) {
   const lexOutput = display("C Lexical Output", ["int", "return", "printf"], 3);
   const ast = [
     { type: "declaration", value: "int main() { return 0; }" },
-    { type: "function", value: "int main()" }
+    { type: "function", value: "int main()" },
   ];
-  const errors = [];  // Add any syntax errors if found
+  const errors = []; // Add any syntax errors if found
 
   return { lexOutput, ast, errors };
 }
@@ -133,5 +132,4 @@ function display(name, arr, mark) {
   output += unique.join(", ");
   output += "\n";
   return output;
-}
 }

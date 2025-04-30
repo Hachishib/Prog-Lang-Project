@@ -6,7 +6,6 @@
     <title>program.ME</title>
     <link rel="stylesheet" href="GuiStyle.css" />
     <script src="JavaGUI.js"></script>
-    <script src="PythonGui.js"></script>
     <script src="CGUI.js"></script>
     <link
       rel="stylesheet"
@@ -66,13 +65,11 @@
       <details class="nav-popup">
         <summary><i class="fas fa-info-circle"></i> Language</summary>
         <div class="popup-content">
-        <input type="file" id="fileInput" accept=".java, .py, .c" style="display: none;" />
-        <button onclick="selectFile('java')">Java</button><br /><br />
-          <button onclick="Pythz">Python</button><br /><br />
-          <button onclick="selectFile('c')">C</button><br /><br />v<button onclick="CCompiler()" > c</button>        <br /><br /> 
+          <button onclick="setLanguage('java')">Java</button><br /><br />
+          <button onclick="setLanguage('python')">Python</button><br /><br />
+          <button onclick="setLanguage('c')">C</button><br /><br />
         </div>
       </details>
-      
 
       <div class="icon">
         <button class="button" id="toggleMode">☀️</button>
@@ -151,8 +148,9 @@
       </div>
     </div>
 
-   
     <script>
+      let currentLanguage = "java";
+
       const toggleButton = document.getElementById("toggleMode");
       isDarkMode = false;
 
@@ -163,6 +161,11 @@
           ? "🌙"
           : "☀️"; /* para magchange icon */
       });
+      function setLanguage(lang) {
+        currentLanguage = lang;
+        console.log(`Switched to ${lang.toUpperCase()} mode`);
+        // Optional: Add visual feedback (e.g., highlight the active button)
+      }
     </script>
   </body>
 </html>
