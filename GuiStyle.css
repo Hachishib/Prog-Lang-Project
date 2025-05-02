@@ -513,3 +513,17 @@ body.dark-mode .error-box {
   padding: 10px;
   font-size: 25px;
 }
+
+.language-btn {
+  padding: 5px 10px;
+  margin: 0 5px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.language-btn.active {
+  background: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
