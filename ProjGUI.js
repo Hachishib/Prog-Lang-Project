@@ -1191,6 +1191,10 @@ class Parser
           if (!statement) return null;
           body.push(statement);
         }
+        if (body.length > 0 && body[body.length - 1]?.type !== "BreakStatement") 
+        {
+          this.addError("Expected 'break;' at the end of case", ErrorType.SEMANTIC, this.tokens[0]?.loc);
+        }
         cases.push({ type: "CaseStatement", condition, body });
       } 
       else if (this.tokens[0]?.value === "default") 
@@ -1205,6 +1209,10 @@ class Parser
           if (!statement) return null;
           body.push(statement);
         }
+        if (body.length > 0 && body[body.length - 1]?.type !== "BreakStatement") 
+          {
+            this.addError("Expected 'break;' at the end of default", ErrorType.SEMANTIC, this.tokens[0]?.loc);
+          }
         defaultCase = { type: "DefaultStatement", body };
       } 
       else 
