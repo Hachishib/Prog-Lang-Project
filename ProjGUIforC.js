@@ -155,21 +155,6 @@ document.addEventListener("DOMContentLoaded", function ()
         }
       }
 
-      if (!q && !inComment && !inMultilineComment && ch === '#' && (i === 0 || x.charAt(i-1) === '\n' || x.charAt(i-1) === '\r')) 
-      {
-        inPreprocessor = true;
-        p = i;
-        while (i + 1 < x.length && x.charAt(i + 1) !== '\n' && x.charAt(i + 1) !== '\r') 
-        {
-          i++;
-        }
-        preprocessor[markers.prepMarker++] = x.substring(p, i + 1);
-        tokens.push({ type: "preprocessor", value: x.substring(p, i + 1) });
-        inPreprocessor = false;
-        p = i + 1;
-        continue;
-      }
-
       if ((ch === '"' || ch === "'") && !inComment && !inMultilineComment) 
       {
         if (q) 
@@ -1784,17 +1769,6 @@ document.addEventListener("DOMContentLoaded", function ()
       if (left.type === "Literal" && right.type === "Literal") {
         this.addError(`infinite comparison in condition`, ErrorType.SEMANTIC);
       }
-    }
-    analyzeErrors() 
-    {
-      let syntaxErrors = this.errors.filter((err) => err.type === ErrorType.SYNTAX);
-      let semanticErrors = this.errors.filter((err) => err.type === ErrorType.SEMANTIC);
-  
-      console.log("Syntax Errors:");
-      syntaxErrors.forEach((err) => console.log("- " + err.message));
-  
-      console.log("Semantic Errors:");
-      semanticErrors.forEach((err) => console.log("- " + err.message));
     }
   }
 });
