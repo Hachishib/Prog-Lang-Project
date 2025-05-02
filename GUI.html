@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>program.ME</title>
     <link rel="stylesheet" href="GuiStyle.css" />
-    <script src="JavaGUI.js"></script>
     <script src="CGUI.js"></script>
+    <script src="JavaGUI.js"></script>
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -64,10 +65,14 @@
 
       <details class="nav-popup">
         <summary><i class="fas fa-info-circle"></i> Language</summary>
-        <div class="popup-content">
-          <button onclick="setLanguage('java')">Java</button><br /><br />
-          <button onclick="setLanguage('python')">Python</button><br /><br />
-          <button onclick="setLanguage('c')">C</button><br /><br />
+        <div class="language-selector">
+          <button class="language-btn language-java active" data-lang="java">
+            Java
+          </button>
+          <button class="language-btn language-python" data-lang="python">
+            Python
+          </button>
+          <button class="language-btn language-c" data-lang="c">C</button>
         </div>
       </details>
 
@@ -149,7 +154,14 @@
     </div>
 
     <script>
-      let currentLanguage = "java";
+      document.querySelectorAll(".language-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          document
+            .querySelectorAll(".language-btn")
+            .forEach((b) => b.classList.remove("active"));
+          this.classList.add("active");
+        });
+      });
 
       const toggleButton = document.getElementById("toggleMode");
       isDarkMode = false;
@@ -161,11 +173,6 @@
           ? "🌙"
           : "☀️"; /* para magchange icon */
       });
-      function setLanguage(lang) {
-        currentLanguage = lang;
-        console.log(`Switched to ${lang.toUpperCase()} mode`);
-        // Optional: Add visual feedback (e.g., highlight the active button)
-      }
     </script>
   </body>
 </html>

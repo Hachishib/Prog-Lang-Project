@@ -6,6 +6,37 @@ document.addEventListener("DOMContentLoaded", function () {
   const astOutput = document.getElementById("astOutput");
   const errorOutput = document.getElementById("errorOutput");
   const convertButton = document.querySelector(".convert-button");
+
+  const languageButtons = document.querySelectorAll(".language-btn");
+  let currentLanguage = "java";
+
+  function setLanguage(lang) {
+    currentLanguage = lang;
+
+    // Update UI to show active language (optional visual feedback)
+    document.querySelectorAll(".language-btn").forEach((btn) => {
+      btn.classList.remove("active");
+    });
+    document.querySelector(`.language-${lang}`).classList.add("active");
+    clearOutput();
+
+    console.log(`Language set to: ${lang}`);
+  }
+
+  languageButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setLanguage(btn.dataset.lang);
+      // Clear the output when switching languages
+      clearOutput();
+    });
+  });
+
+  function clearOutput() {
+    outputWrite.value = "";
+    astOutput.textContent = "";
+    errorOutput.innerHTML = "";
+  }
+
   convertButton.addEventListener("click", () => {
     const input = inputWrite.value.trim();
     outputWrite.value = "";
@@ -15,13 +46,19 @@ document.addEventListener("DOMContentLoaded", function () {
     let results;
     switch (currentLanguage) {
       case "java":
+        console.log("C results:", results);
         results = analyzeAndParseJava(input); // From JavaGUI.js
         break;
       case "python":
         results = analyzeAndParsePython(input); // From PythonGui.js
         break;
       case "c":
-        results = analyzeAndParseC(input); // From CGUI.js
+        results = window.analyzeAndParseC(input); // From CGUI.js
+        console.log("C results:", results); //  <-- ADD THIS LINE (for debugging)
+        window.displayOutput(results.lexOutput); //  These three lines
+        window.displayAST(results.ast); //  are the ones
+        window.displayErrors(results.errors);
+        console.log("C results:", results);
         break;
       default:
         results = { lexOutput: "", ast: [], errors: [] };
@@ -100,19 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  convertButton.addEventListener("click", () => {
-    const input = inputWrite.value.trim();
-    outputWrite.value = "";
-    astOutput.textContent = "";
-    errorOutput.innerHTML = "";
-
-    const results = analyzeAndParse(input);
-    displayOutput(results.lexOutput);
-    displayAST(results.ast);
-    displayErrors(results.errors);
-  });
-
-  function analyzeAndParse(x) {
+  function analyzeAndParseJava(x) {
     let lexOutput = "";
     let operators = new Array(x.length);
     let constants = new Array(x.length);
@@ -301,7 +326,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const ast = parser.parse();
 
     return {
-      lexOutput,
+      lexOutput: "Java Language",
       ast: ast,
       errors: parser.errors,
     };
@@ -1770,4 +1795,5 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   }
+  window.analyzeAndParseJava = analyzeAndParseJava;
 });
