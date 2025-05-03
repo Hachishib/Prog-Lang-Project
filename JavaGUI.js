@@ -13,25 +13,22 @@ document.addEventListener("DOMContentLoaded", function () {
   function setLanguage(lang) {
     currentLanguage = lang;
 
-    // Update UI to show active language (optional visual feedback)
     document.querySelectorAll(".language-btn").forEach((btn) => {
       btn.classList.remove("active");
     });
     document.querySelector(`.language-${lang}`).classList.add("active");
     clearOutput();
-
-    console.log(`Language set to: ${lang}`);
   }
 
   languageButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       setLanguage(btn.dataset.lang);
-      // Clear the output when switching languages
       clearOutput();
     });
   });
 
   function clearOutput() {
+    inputWrite.value = "";
     outputWrite.value = "";
     astOutput.textContent = "";
     errorOutput.innerHTML = "";
@@ -326,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const ast = parser.parse();
 
     return {
-      lexOutput: "Java Language",
+      lexOutput: lexOutput,
       ast: ast,
       errors: parser.errors,
     };
