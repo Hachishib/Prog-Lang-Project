@@ -1,9 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("CGUI.js loaded");
-  console.log("outputWrite element:", document.getElementById("outputWrite"));
-  console.log("astOutput element:", document.getElementById("astOutput"));
-  console.log("errorOutput element:", document.getElementById("errorOutput"));
-
   const outputWrite = document.getElementById("outputWrite");
   const astOutput = document.getElementById("astOutput");
   const errorOutput = document.getElementById("errorOutput");
