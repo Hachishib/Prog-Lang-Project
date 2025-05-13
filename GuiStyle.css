@@ -520,10 +520,33 @@ body.dark-mode .error-box {
   background: #f0f0f0;
   border: 1px solid #ccc;
   cursor: pointer;
+  margin-top: 15px;
+  flex-direction: row;
 }
 
 .language-btn.active {
   background: #4caf50;
   color: white;
   border-color: #4caf50;
+}
+
+.popup-content-L {
+  flex-direction: column;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  padding: 5px;
+  background: #ffffff;
+  border: 1px solid #999;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.popup-content-L button {
+  padding-left: 10px;
+  border-radius: 5px;
+  margin-left: 10px;
+  margin-bottom: 5px;
 }

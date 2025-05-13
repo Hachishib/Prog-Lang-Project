@@ -46,9 +46,6 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("C results:", results);
         results = analyzeAndParseJava(input); // From JavaGUI.js
         break;
-      case "python":
-        results = analyzeAndParsePython(input); // From PythonGui.js
-        break;
       case "c":
         results = window.analyzeAndParseC(input); // From CGUI.js
         console.log("C results:", results); //  <-- ADD THIS LINE (for debugging)
