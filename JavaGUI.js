@@ -13,11 +13,14 @@ document.addEventListener("DOMContentLoaded", function () {
   function setLanguage(lang) {
     currentLanguage = lang;
 
+    // Update UI to show active language (optional visual feedback)
     document.querySelectorAll(".language-btn").forEach((btn) => {
       btn.classList.remove("active");
     });
     document.querySelector(`.language-${lang}`).classList.add("active");
     clearOutput();
+
+    console.log(`Language set to: ${lang}`);
   }
 
   languageButtons.forEach((btn) => {
@@ -28,7 +31,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   function clearOutput() {
-    inputWrite.value = "";
     outputWrite.value = "";
     astOutput.textContent = "";
     errorOutput.innerHTML = "";
@@ -46,13 +48,14 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("C results:", results);
         results = analyzeAndParseJava(input); // From JavaGUI.js
         break;
+      case "python":
+        results = analyzeAndParsePython(input); // From PythonGui.js
+        break;
       case "c":
         results = window.analyzeAndParseC(input); // From CGUI.js
-        console.log("C results:", results); //  <-- ADD THIS LINE (for debugging)
         window.displayOutput(results.lexOutput); //  These three lines
         window.displayAST(results.ast); //  are the ones
         window.displayErrors(results.errors);
-        console.log("C results:", results);
         break;
       default:
         results = { lexOutput: "", ast: [], errors: [] };
@@ -621,71 +624,54 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     }
 
+
     parseAssignment() {
       let keyword;
       if (this.tokens[0]?.type === "keyword") {
-        keyword = this.tokens.shift();
+          keyword = this.tokens.shift();
       }
       const identifier = this.tokens.shift();
       const op = this.tokens.shift();
       let error = null;
       let value = null;
-
+  
       if (!op || op.value !== "=") {
-        error = this.addError(
-          `Invalid assignment syntax: Expected '=' after identifier '${identifier?.value}'instead of '${op?.value}'`,
-          ErrorType.SYNTAX,
-          op?.loc || identifier?.loc
-        );
+          this.addError(`Invalid assignment syntax: Expected '=' after identifier '${identifier?.value}' instead of '${op?.value}'`, ErrorType.SYNTAX, op?.loc || identifier?.loc);
+          // Recover by skipping the invalid token(s)
+          while (this.tokens.length > 0 && this.tokens[0].value !== ';' && this.tokens[0].value !== '}') {
+              this.tokens.shift();
+          }
       } else {
-        value = this.tokens.shift();
+          value = this.parseLiteralOrExpression(this.tokens.shift());
       }
-      this.consumeSemicolon(
-        `Missing semicolon after assignment of '${identifier.value}'`
-      );
-
+      this.consumeSemicolon(`Missing semicolon after assignment of '${identifier.value}'`);
+  
       if (keyword && !this.declareVariable(identifier.value, keyword.value)) {
-        if (error === null && identifier) {
-          error = this.addError(
-            `Variable '${identifier.value}' already declared`,
-            ErrorType.SEMANTIC,
-            this.tokens[0]?.loc
-          );
-        }
+          if (error === null && identifier) {
+              this.addError(`Variable '${identifier.value}' already declared`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
+          }
       }
-
+  
       if (!this.lookupVariable(identifier.value)) {
-        if (identifier) {
-          this.addError(
-            `Variable '${identifier.value}' is not declared.`,
-            ErrorType.SEMANTIC,
-            this.tokens[0]?.loc
-          );
-        }
+          if (identifier) {
+              this.addError(`Variable '${identifier.value}' is not declared.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
+          }
       }
-
+  
       const variable = this.lookupVariable(identifier.value);
       const parsedValue = this.parseLiteralOrExpression(value);
-
-      if (
-        variable &&
-        parsedValue &&
-        !this.isValidAssignment(parsedValue, variable.type)
-      ) {
-        if (value) {
-          this.addError(
-            `Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`,
-            ErrorType.SEMANTIC
-          );
-        }
+      if (variable && parsedValue && !this.isValidAssignment(parsedValue, variable.type)) {
+          if (value) {
+              this.addError(`Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`, ErrorType.SEMANTIC);
+          }
       }
-
+  
       this.assignVariable(identifier.value);
       const assignmentNode = {
-        type: "Assignment",
-        keyword: keyword?.value,
-        identifier: identifier.value,
-        value: parsedValue,
+          type: "Assignment",
+          keyword: keyword?.value,
+          identifier: identifier.value,
+          value: parsedValue
       };
       return assignmentNode;
     }
@@ -757,7 +743,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     parseLiteralOrExpression(token) {
-      if (!token) return { error: "Missing token in expression" };
+      if (!token) 
+        {
+          this.addError("Missing token in expression", ErrorType.SYNTAX, token?.loc);
+          return null;
+        }
 
       const typeKeywords = [
         "int",
@@ -773,7 +763,8 @@ document.addEventListener("DOMContentLoaded", function () {
           ErrorType.SEMANTIC,
           token.loc
         );
-        return { error: "Invalid declaration in expression" };
+        this.addError("Invalid declaration in expression", ErrorType.SEMANTIC, token.loc);
+        return null;
       }
 
       if (token.type === "constant") {
@@ -805,11 +796,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (token.type === "identifier") {
         const variable = this.lookupVariable(token.value);
         if (!variable) {
-          return this.addError(
+          this.addError(
             `Variable '${token.value}' is not declared.`,
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
+          return null;
         }
         if (!variable.assigned) {
           this.addError(
