@@ -191,6 +191,43 @@ body.loaded #main-content {
   display: none !important;
 }
 
+.popup-content-L {
+  flex-direction: column;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  padding: 5px;
+  background: #ffffff;
+  border: 1px solid #999;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.popup-content-L button {
+  padding-left: 10px;
+  border-radius: 5px;
+  margin-left: 10px;
+  margin-bottom: 5px;
+}
+
+.language-btn {
+  padding: 5px 10px;
+  margin: 0 5px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  margin-top: 15px;
+  flex-direction: row;
+}
+
+.language-btn.active {
+  background: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
 body {
   padding: 20px;
   background-color: #edf6f9;
@@ -331,33 +368,6 @@ label[for="outputWrite"] {
   justify-content: center;
 }
 
-.convert-button {
-  background-color: #ff6b6b;
-  color: white;
-  border: none;
-  padding: 12px 30px;
-  font-size: 14px;
-  font-weight: bold;
-  border-radius: 30px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.convert-button:hover {
-  background-color: #e63946;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.convert-button:active {
-  transform: scale(0.98);
-}
-
-.close-css:hover {
-  color: #000;
-}
-
 #ast {
   background-color: pink;
   border-radius: 15px;
@@ -390,6 +400,33 @@ label[for="outputWrite"] {
   height: 200px;
   overflow: auto;
   background-color: blanchedalmond;
+}
+
+.convert-button {
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 30px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.convert-button:hover {
+  background-color: #e63946;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.convert-button:active {
+  transform: scale(0.98);
+}
+
+.close-css:hover {
+  color: #000;
 }
 
 body.dark-mode {
@@ -512,41 +549,4 @@ body.dark-mode .error-box {
   resize: none;
   padding: 10px;
   font-size: 25px;
-}
-
-.language-btn {
-  padding: 5px 10px;
-  margin: 0 5px;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  cursor: pointer;
-  margin-top: 15px;
-  flex-direction: row;
-}
-
-.language-btn.active {
-  background: #4caf50;
-  color: white;
-  border-color: #4caf50;
-}
-
-.popup-content-L {
-  flex-direction: column;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 8px;
-  padding: 5px;
-  background: #ffffff;
-  border: 1px solid #999;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  z-index: 10;
-}
-
-.popup-content-L button {
-  padding-left: 10px;
-  border-radius: 5px;
-  margin-left: 10px;
-  margin-bottom: 5px;
 }
