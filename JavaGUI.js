@@ -13,7 +13,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function setLanguage(lang) {
     currentLanguage = lang;
 
-    // Update UI to show active language (optional visual feedback)
     document.querySelectorAll(".language-btn").forEach((btn) => {
       btn.classList.remove("active");
     });
@@ -316,7 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
         token.value.trim() !== "" &&
         !(
           token.type === "punctuator" &&
-          ["!", "?", "[", "]"].includes(token.value)
+          ["?", "[", "]"].includes(token.value)
         )
     );
     const parser = new Parser(filteredTokens);
@@ -404,11 +403,28 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function isInteger(str) {
-    return /^\d+$/.test(str);
+    if (str.length === 0) return false;
+    for (let i = 0; i < str.length; i++) {
+        const ch = str.charAt(i);
+        if (ch < '0' || ch > '9') return false;
+    }
+    return true;
   }
 
-  function isFloat(str) {
-    return /^\d+\.\d+$/.test(str);
+function isFloat(str) {
+    let point = 0;
+    if (str.length === 0) return false;
+
+    for (let i = 0; i < str.length; i++) {
+        const ch = str.charAt(i);
+        if (ch === '.') {
+            if (point === 1) return false;
+            point = 1;
+        } else if (ch < '0' || ch > '9') {
+            return false;
+        }
+    }
+    return point === 1;
   }
 
   function isOperator(op) {
@@ -444,7 +460,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function isPunctuation(code, index) {
     let ch = code.charAt(index);
-    const punctuators = ";:,!?[]{}()";
+    const punctuators = ";:,?[]{}()";
     if (punctuators.includes(ch)) {
       return true;
     }
@@ -487,11 +503,27 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     synchronize() {
+      let braceDepth = 0;
+
       while (this.tokens.length > 0) {
-        const value = this.tokens[0]?.value;
-        if (value === "}" || value === ";" || this.isIfKeyword(this.tokens[0]) || value === "else") {
-          return;
+        const token = this.tokens[0];
+
+        if (token.value === "{") {
+          braceDepth++;
+        } else if (token.value === "}") {
+          if (braceDepth === 0) {
+            this.tokens.shift();
+            break;
+          }
+          braceDepth--;
+        } else if (braceDepth === 0 &&
+          (
+            token.value === ";" ||
+            ["if", "for", "while", "class", "switch", "return", "break", "continue"].includes(token.value)
+          )) {
+          break;
         }
+
         this.tokens.shift();
       }
     }
@@ -655,7 +687,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const identifier = this.tokens.shift();
       const op = this.tokens.shift();
       let error = null;
-      let value = null;
+      let valueToken = null;
   
       if (!op || op.value !== "=") {
           this.addError(`Invalid assignment syntax: Expected '=' after identifier '${identifier?.value}' instead of '${op?.value}'`, ErrorType.SYNTAX, op?.loc || identifier?.loc);
@@ -664,31 +696,26 @@ document.addEventListener("DOMContentLoaded", function () {
               this.tokens.shift();
           }
       } else {
-          value = this.parseLiteralOrExpression(this.tokens.shift());
+          valueToken = this.tokens.shift();
       }
       this.consumeSemicolon(`Missing semicolon after assignment of '${identifier.value}'`);
   
       if (keyword && !this.declareVariable(identifier.value, keyword.value)) {
           if (error === null && identifier) {
               this.addError(`Variable '${identifier.value}' already declared`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
-              this.synchronize();
           }
       }
   
       if (!this.lookupVariable(identifier.value)) {
           if (identifier) {
               this.addError(`Variable '${identifier.value}' is not declared.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
-              this.synchronize();
           }
       }
   
       const variable = this.lookupVariable(identifier.value);
-      const parsedValue = this.parseLiteralOrExpression(value);
+      const parsedValue = this.parseLiteralOrExpression(valueToken);
       if (variable && parsedValue && !this.isValidAssignment(parsedValue, variable.type)) {
-          if (value) {
               this.addError(`Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`, ErrorType.SEMANTIC);
-              this.synchronize();
-          }
       }
   
       this.assignVariable(identifier.value);
@@ -696,7 +723,7 @@ document.addEventListener("DOMContentLoaded", function () {
           type: "Assignment",
           keyword: keyword?.value,
           identifier: identifier.value,
-          value: parsedValue
+          value: parsedValue,
       };
       return assignmentNode;
     }
@@ -710,7 +737,6 @@ document.addEventListener("DOMContentLoaded", function () {
           `Unexpected token after declaration of '${identifier.value}'`,
           ErrorType.SEMANTIC
         );
-        this.synchronize();
         while (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
           this.tokens.shift();
         }
@@ -757,7 +783,6 @@ document.addEventListener("DOMContentLoaded", function () {
             `Bad operand '${op.value}' to be use in printing.`,
             ErrorType.SEMANTIC
           );
-          this.synchronize();
         }
         left = {
           type: "BinaryExpression",
@@ -773,7 +798,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!token) 
         {
           this.addError("Missing token in expression", ErrorType.SYNTAX, token?.loc);
-          this.synchronize();
           return null;
         }
 
@@ -792,7 +816,6 @@ document.addEventListener("DOMContentLoaded", function () {
           token.loc
         );
         this.addError("Invalid declaration in expression", ErrorType.SEMANTIC, token.loc);
-        this.synchronize();
         return null;
       }
 
@@ -830,7 +853,6 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
-          this.synchronize();
           return null;
         }
         if (!variable.assigned) {
@@ -839,7 +861,6 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
-          this.synchronize();
         }
         return {
           type: "Variable",
@@ -856,7 +877,6 @@ document.addEventListener("DOMContentLoaded", function () {
       this.tokens.shift(); // consume 'if'
 
       if (!this.consumeToken("(", "Expected '(' after 'if'")) {
-        this.synchronize();
         return null;
       }
 
@@ -868,7 +888,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (!this.consumeToken(")", "Expected ')' after condition")) {
-        this.synchronize();
+
         return null;
       }
 
@@ -895,11 +915,10 @@ document.addEventListener("DOMContentLoaded", function () {
             this.synchronize();
             continue;
           }
-
-          // Validate condition exists after 'else if'
+          
           if (!this.consumeToken("(", "Expected '(' after 'else if'")) {
             this.synchronize();
-            continue;
+            break;
           }
 
           const elseIfCondition = this.parseCondition();
@@ -911,7 +930,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           if (!this.consumeToken(")", "Expected ')' after 'else if' condition")) {
             this.synchronize();
-            continue;
+            break;
           }
 
           const elseIfBranch = this.parseBlock();
@@ -941,10 +960,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      if (elseIfBranches.length > 0 && !hasElse) {
-        this.addError("Missing 'else' block after 'else if' chain", ErrorType.SYNTAX);
-      }
-
       if (elseIfBranches.length > 0) {
         ifNode.elseIfBranches = elseIfBranches;
       }
@@ -952,136 +967,26 @@ document.addEventListener("DOMContentLoaded", function () {
       return ifNode;
     }
 
-
     parseCondition() {
-      if (this.tokens.length < 3) {
-        this.addError("Incomplete condition", ErrorType.SYNTAX);
-        this.synchronize();
+      if (this.tokens.length < 1) {
+        this.addError("Empty condition", ErrorType.SYNTAX);
         return null;
       }
-      const savedTokens = [...this.tokens];
 
-      // Try to parse a binary expression like i % 2
-      let left = null;
-
-      // Check for simple cases first (identifier or constant)
-      if (
-        this.tokens[0]?.type === "identifier" ||
-        this.tokens[0]?.type === "constant" ||
-        this.tokens[0]?.type === "literal"
-      ) {
-        const leftToken = this.tokens.shift();
-        left = this.parseLiteralOrExpression(leftToken);
-
-        // Check if the next token might be part of a binary expression (e.g., %)
-        if (
-          this.tokens[0]?.type === "operator" &&
-          "+-*/%".includes(this.tokens[0]?.value)
-        ) {
-          // Put the token back
-          this.tokens.unshift(leftToken);
-          // Reset and try to parse as expression
-          left = this.parseSimpleExpression();
-        }
-      } else {
-        // If not a simple case, try to parse as expression
-        left = this.parseSimpleExpression();
-      }
-
-      if (!left || left.error) {
-        // If parsing failed, restore tokens and try another approach
-        this.tokens = savedTokens;
-        const leftToken = this.tokens.shift();
-        left = this.parseLiteralOrExpression(leftToken);
-      }
-
-      if (!left || left.error) return null;
-
-      // Get the operator
-      const operatorToken = this.tokens.shift();
-      if (!this.isValidComparisonOperator(operatorToken?.value)) {
-        this.addError(
-          `Invalid comparison operator '${operatorToken?.value}' in condition`,
-          ErrorType.SYNTAX,
-          operatorToken?.loc
-        );
-        this.synchronize();
-        return;
-      }
-
-      // Parse right side - using similar approach as left side
-      let right = null;
-
-      if (
-        this.tokens[0]?.type === "identifier" ||
-        this.tokens[0]?.type === "constant" ||
-        this.tokens[0]?.type === "literal"
-      ) {
-        const rightToken = this.tokens.shift();
-        right = this.parseLiteralOrExpression(rightToken);
-
-        if (
-          this.tokens[0]?.type === "operator" &&
-          "+-*/%".includes(this.tokens[0]?.value)
-        ) {
-          this.tokens.unshift(rightToken);
-          right = this.parseSimpleExpression();
-        }
-      } else {
-        right = this.parseSimpleExpression();
-      }
-
-      if (!right || right.error) {
-        // If parsing failed, fall back to simple token
-        const rightToken = this.tokens.shift();
-        right = this.parseLiteralOrExpression(rightToken);
-      }
-
-      if (!right || right.error) return null;
-
-      // Perform semantic analysis
-      this.semanticCons(left, right, operatorToken?.value);
-
-      return { type: "Condition", left, operator: operatorToken?.value, right };
-    }
-
-    parseSimpleExpression() {
-      if (this.tokens.length < 3) return null;
-
-      const leftToken = this.tokens.shift();
-      const left = this.parseLiteralOrExpression(leftToken);
-      if (!left || left.error) {
-        this.tokens.unshift(leftToken); // Put token back
+      const expression = this.parseExpression();
+      if (!expression) {
+        this.addError("Invalid condition expression", ErrorType.SYNTAX);
         return null;
       }
 
       if (
-        this.tokens[0]?.type !== "operator" ||
-        !"+-*/%".includes(this.tokens[0]?.value)
+        expression.dataType &&
+        !["boolean", "int", "float", "char"].includes(expression.dataType)
       ) {
-        this.tokens.unshift(leftToken); // Put token back
-        return null;
+        this.addError(`Invalid condition data type '${expression.dataType}'`, ErrorType.SEMANTIC);
       }
 
-      const op = this.tokens.shift();
-      const rightToken = this.tokens.shift();
-      const right = this.parseLiteralOrExpression(rightToken);
-
-      if (!right || right.error) {
-        // Restore tokens if parsing fails
-        this.tokens.unshift(rightToken);
-        this.tokens.unshift(op);
-        this.tokens.unshift(leftToken);
-        return null;
-      }
-
-      return {
-        type: "BinaryExpression",
-        left: left,
-        operator: op.value,
-        right: right,
-        dataType: left.dataType,
-      };
+      return { type: "Condition", expression };
     }
 
     parseBlock() {
@@ -1214,7 +1119,6 @@ document.addEventListener("DOMContentLoaded", function () {
           ErrorType.SYNTAX,
           this.tokens[0]?.loc
         );
-        this.synchronize();
         return { type: "MethodCall", object, method, arguments: args };
       }
 
@@ -1271,27 +1175,22 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (!this.consumeToken(")", "Expected ')' after condition in do-while loop")) {
-          this.synchronize();
           return null;
         }
         this.consumeSemicolon("Missing semicolon after do-while loop");
-        this.synchronize();
         return { type: "DoWhileLoop", condition, body };
       } else if (loopType === "while") {
         this.tokens.shift(); // Consume 'while'
         if (!this.consumeToken("(", "Expected '(' after 'while'")) {
-          this.synchronize();
           return null;
         }
         const condition = this.parseCondition();
         if (!condition) {
           this.addError("Invalid condition in while loop", ErrorType.SYNTAX);
-          this.synchronize();
           return null;
         }
 
         if (!this.consumeToken(")", "Expected ')' after condition in while loop")) {
-          this.synchronize();
           return null;
         }
         const body = this.parseBlock();
@@ -1301,7 +1200,6 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
-          this.synchronize();
           return null;
         }
 
@@ -1328,7 +1226,6 @@ document.addEventListener("DOMContentLoaded", function () {
             this.assignVariable(identifier);
             init = { type: "Assignment", identifier: identifier, value: value };
             if (!this.consumeToken(";","Expected ';' after initialization in for loop")){
-              this.synchronize();
               return null;
             }
           } else {
@@ -1337,7 +1234,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             init = { type: "EmptyStatement" };
             if (!this.consumeToken(";","Expected ';' after initialization in for loop")) {
-              this.synchronize();
               return null;
             }
           }
@@ -1350,7 +1246,6 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
           condition = this.parseCondition();
           if (!this.consumeToken(";", "Expected ';' after condition in for loop")) {
-            this.synchronize();
             return null;
           }
         }
@@ -1363,7 +1258,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (!this.consumeToken(")","Expected ')' after iteration expression in for loop")) {
-          this.synchronize();
           return null;
         }
         const body = this.parseBlock();
@@ -1373,7 +1267,6 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
-          this.synchronize();
           return null;
         }
         return { type: "ForLoop", init, condition, iteration, body };
@@ -1446,12 +1339,10 @@ document.addEventListener("DOMContentLoaded", function () {
     parseSwitchStatement() {
       this.tokens.shift(); // Consume 'switch'
       if (!this.consumeToken("(", "Expected ( after switch")) {
-          this.synchronize();
           return null;
       }
       const expression = this.parseExpression();
       if (!this.consumeToken(")", "Expected ) after switch expression")) {
-        this.synchronize();
         return null;
       }
       if (!this.consumeToken("{", "Expected { after switch expression")) {
@@ -1467,7 +1358,6 @@ document.addEventListener("DOMContentLoaded", function () {
           const condition = this.parseExpression();
           if (!condition) return null;
           if (!this.consumeToken(":", "Expected : after case condition")) {
-            this.synchronize();
             return null;
           }
           const body = [];
@@ -1485,7 +1375,6 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (this.tokens[0]?.value === "default") {
           this.tokens.shift(); // Consume 'default'
           if (!this.consumeToken(":", "Expected : after default keyword")) {
-            this.synchronize();
             return null;
           }
           const body = [];
@@ -1505,7 +1394,6 @@ document.addEventListener("DOMContentLoaded", function () {
             "Invalid statement inside switch block",
             ErrorType.SYNTAX
           );
-          this.synchronize();
           return null;
         }
       }
@@ -1527,7 +1415,6 @@ document.addEventListener("DOMContentLoaded", function () {
         value = this.parseExpression();
 
       this.consumeSemicolon(`Expected semicolon after ${statementType}`);
-      this.synchronize();
 
       if (statementType === "break") {
         return { type: "BreakStatement" };
@@ -1548,8 +1435,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (expectedType === "int") return isInteger(value.value);
       if (expectedType === "float") return isFloat(value.value);
       if (expectedType === "String") return value.dataType === "String";
-      if (expectedType === "boolean")
-        return value.value === "true" || value.value === "false";
+      if (expectedType === "boolean") return value.value === "true" || value.value === "false";
       if (expectedType === "char") return value.dataType === "char";
       if (expectedType === "void") return false;
       if (expectedType === "double") return isFloat(value.value);
@@ -1596,11 +1482,9 @@ document.addEventListener("DOMContentLoaded", function () {
     isMethodCall(tokens) {
       if (tokens.length < 3) return false;
 
-      // Simple case: identifier followed by (
       if (tokens[0]?.type === "identifier" && tokens[1]?.value === "(")
         return true;
 
-      // More complex case: identifier.identifier...( pattern
       let i = 0;
       if (tokens[i]?.type !== "identifier") return false;
 
@@ -1678,7 +1562,6 @@ document.addEventListener("DOMContentLoaded", function () {
           ErrorType.SYNTAX,
           this.tokens[0]?.loc
         );
-        this.synchronize();
       }
     }
 
@@ -1688,7 +1571,6 @@ document.addEventListener("DOMContentLoaded", function () {
         return true;
       } else {
         this.addError(errorMessage, ErrorType.SYNTAX, this.tokens[0]?.loc);
-        this.synchronize();
         return false;
       }
     }
@@ -1712,7 +1594,6 @@ document.addEventListener("DOMContentLoaded", function () {
           `Variable '${identifier}' already declared in this scope.`,
           ErrorType.SEMANTIC
         );
-        this.synchronize();
         return false;
       }
       currentScope[identifier] = {
@@ -1735,7 +1616,6 @@ document.addEventListener("DOMContentLoaded", function () {
         `Variable '${identifier}' is not declared.`,
         ErrorType.SEMANTIC
       );
-      this.synchronize();
     }
 
     dataType(token) {
@@ -1761,13 +1641,11 @@ document.addEventListener("DOMContentLoaded", function () {
       if (statement) {
         if (statement.error) {
           this.addError(statement.error, ErrorType.SYNTAX);
-          this.synchronize();
           return;
         }
         statements.push(statement);
       } else {
         this.addError(errorMessage, ErrorType.SYNTAX);
-        this.synchronize();
       }
     }
 
@@ -1788,10 +1666,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const varInfo = this.lookupVariable(left.value);
         if (!varInfo) {
           this.addError(
-            `Variable '${left.value}' in condition is not declared`,
+            `Variable '${left.value}' in condition is not declared.`,
             ErrorType.SEMANTIC
           );
-          this.synchronize();
         } else {
           left.dataType = varInfo.type;
           if (!varInfo.assigned) {
@@ -1799,7 +1676,6 @@ document.addEventListener("DOMContentLoaded", function () {
               `Variable '${left.value}' used in before being assigned a value.`,
               ErrorType.SEMANTIC
             );
-            this.synchronize();
           }
         }
       }
@@ -1810,7 +1686,6 @@ document.addEventListener("DOMContentLoaded", function () {
             `Variable '${right.value}' in condition is not declared`,
             ErrorType.SEMANTIC
           );
-          this.synchronize();
         } else {
           right.dataType = varInfo.type;
           if (!varInfo.assigned) {
@@ -1818,7 +1693,6 @@ document.addEventListener("DOMContentLoaded", function () {
               `Variable '${right.value}' used in condition before assignment.`,
               ErrorType.SEMANTIC
             );
-            this.synchronize();
           }
         }
       }
@@ -1828,7 +1702,6 @@ document.addEventListener("DOMContentLoaded", function () {
             `Invalid comparison: '${right.value}' does not match type '${left.dataType}' of '${left.value}'`,
             ErrorType.SEMANTIC
           );
-          this.synchronize();
         }
       }
       if (left?.type === "Literal" && right?.type === "Variable") {
@@ -1837,7 +1710,6 @@ document.addEventListener("DOMContentLoaded", function () {
             `Invalid comparison: '${left.value}' does not match type '${right.dataType}' of '${right.value}'`,
             ErrorType.SEMANTIC
           );
-          this.synchronize();
         }
       }
       if (left?.type === "Variable" && right?.type === "Variable") {
@@ -1846,7 +1718,6 @@ document.addEventListener("DOMContentLoaded", function () {
             `Type mismatch in condition: ' ${left.dataType}' to '${right.dataType}' comparison. ''`,
             ErrorType.SEMANTIC
           );
-          this.synchronize();
         }
       }
 
@@ -1870,11 +1741,9 @@ document.addEventListener("DOMContentLoaded", function () {
           `Datatypes mismatch: '${left.dataType}' and '${right.dataType}' in condition`,
           ErrorType.SEMANTIC
         );
-        this.synchronize();
       }
       if (operator === "=") {
         this.addError(`Invalid operator '=' in condition`, ErrorType.SEMANTIC);
-        this.synchronize();
       }
 
       if (
@@ -1887,7 +1756,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (["+", "-", "*", "/"].includes(operator)) {
         this.addError(`Invalid comparison in condition`, ErrorType.SEMANTIC);
-        this.synchronize();
       }
 
       if (
@@ -1898,7 +1766,6 @@ document.addEventListener("DOMContentLoaded", function () {
           `Invalid comparison between the datatypes in condition`,
           ErrorType.SEMANTIC
         );
-        this.synchronize();
       }
 
       if (
@@ -1909,12 +1776,10 @@ document.addEventListener("DOMContentLoaded", function () {
           `Invalid comparison between the datatypes in condition`,
           ErrorType.SEMANTIC
         );
-        this.synchronize();
       }
 
       if (left.type === "Literal" && right.type === "Literal") {
         this.addError(`infinite comparison in condition`, ErrorType.SEMANTIC);
-        this.synchronize();
       }
     }
   }
