@@ -465,25 +465,37 @@ document.addEventListener("DOMContentLoaded", function () {
     parse() {
       const ast = [];
       while (this.tokens.length > 0) {
-        const statement = this.parseStatement();
-        if (statement) {
-          if (statement.error) {
-            this.addError(statement.error, ErrorType.SYNTAX);
-          }
-          ast.push(statement);
-        } else {
-          if (this.tokens.length > 0) {
-            this.addError(
-              `Unrecognized token: ${this.tokens[0]?.value}`,
-              ErrorType.SYNTAX,
-              this.tokens[0]?.loc
-            );
-            this.tokens.shift();
+      const statement = this.parseStatement();
+      if (statement) {
+        if (statement.error) {
+          this.addError(statement.error, ErrorType.SYNTAX);
+          this.synchronize();
+        }
+        ast.push(statement);
+      } else {
+        if (this.tokens.length > 0) {
+          this.addError(
+            `Unrecognized token: ${this.tokens[0]?.value}`,
+            ErrorType.SYNTAX,
+            this.tokens[0]?.loc
+          );
+          this.synchronize();
           }
         }
       }
       return ast;
     }
+
+    synchronize() {
+      while (this.tokens.length > 0) {
+        const value = this.tokens[0]?.value;
+        if (value === "}" || value === ";" || this.isIfKeyword(this.tokens[0]) || value === "else") {
+          return;
+        }
+        this.tokens.shift();
+      }
+    }
+
 
     parseStatement() {
       if (this.tokens.length === 0) return null;
@@ -514,16 +526,19 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (!this.consumeToken("class", "Expected class keyword")) {
+        this.synchronize();
         return null;
       }
 
       if (this.tokens[0]?.type !== "identifier") {
         this.addError("Expected class name", ErrorType.SYNTAX);
+        this.synchronize();
         return null;
       }
       const className = this.tokens.shift().value;
 
       if (!this.consumeToken("{", "Expected { after class name")) {
+        this.synchronize();
         return null;
       }
 
@@ -542,6 +557,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       this.popScope();
       if (!this.consumeToken("}", "Expected } to close class declaration")) {
+        this.synchronize();
         return null;
       }
 
@@ -562,17 +578,20 @@ document.addEventListener("DOMContentLoaded", function () {
         this.tokens[0]?.type !== "identifier"
       ) {
         this.addError("Expected return type", ErrorType.SYNTAX);
+        this.synchronize();
         return null;
       }
       const returnType = this.tokens.shift().value;
 
       if (this.tokens[0]?.type !== "identifier") {
         this.addError("Expected method name", ErrorType.SYNTAX);
+        this.synchronize();
         return null;
       }
       const methodName = this.tokens.shift().value;
 
       if (!this.consumeToken("(", "Expected ( after method name")) {
+        this.synchronize();
         return null;
       }
 
@@ -586,6 +605,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const paramType = this.tokens.shift().value;
           if (this.tokens[0]?.type !== "identifier") {
             this.addError("Expected parameter name", ErrorType.SYNTAX);
+            this.synchronize();
             break;
           }
           const paramName = this.tokens.shift().value;
@@ -604,11 +624,13 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         } else {
           this.addError("Invalid parameter", ErrorType.SYNTAX);
+          this.synchronize();
           break;
         }
       }
 
       if (!this.consumeToken(")", "Expected ) after parameters")) {
+        this.synchronize();
         return null;
       }
 
@@ -637,7 +659,7 @@ document.addEventListener("DOMContentLoaded", function () {
   
       if (!op || op.value !== "=") {
           this.addError(`Invalid assignment syntax: Expected '=' after identifier '${identifier?.value}' instead of '${op?.value}'`, ErrorType.SYNTAX, op?.loc || identifier?.loc);
-          // Recover by skipping the invalid token(s)
+          this.synchronize();
           while (this.tokens.length > 0 && this.tokens[0].value !== ';' && this.tokens[0].value !== '}') {
               this.tokens.shift();
           }
@@ -649,12 +671,14 @@ document.addEventListener("DOMContentLoaded", function () {
       if (keyword && !this.declareVariable(identifier.value, keyword.value)) {
           if (error === null && identifier) {
               this.addError(`Variable '${identifier.value}' already declared`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
+              this.synchronize();
           }
       }
   
       if (!this.lookupVariable(identifier.value)) {
           if (identifier) {
               this.addError(`Variable '${identifier.value}' is not declared.`, ErrorType.SEMANTIC, this.tokens[0]?.loc);
+              this.synchronize();
           }
       }
   
@@ -663,6 +687,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (variable && parsedValue && !this.isValidAssignment(parsedValue, variable.type)) {
           if (value) {
               this.addError(`Error mismatch: cannot assign ${parsedValue.dataType} to ${variable.type}`, ErrorType.SEMANTIC);
+              this.synchronize();
           }
       }
   
@@ -685,6 +710,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `Unexpected token after declaration of '${identifier.value}'`,
           ErrorType.SEMANTIC
         );
+        this.synchronize();
         while (this.tokens.length > 0 && this.tokens[0]?.value !== ";") {
           this.tokens.shift();
         }
@@ -731,6 +757,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `Bad operand '${op.value}' to be use in printing.`,
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         }
         left = {
           type: "BinaryExpression",
@@ -746,6 +773,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!token) 
         {
           this.addError("Missing token in expression", ErrorType.SYNTAX, token?.loc);
+          this.synchronize();
           return null;
         }
 
@@ -764,6 +792,7 @@ document.addEventListener("DOMContentLoaded", function () {
           token.loc
         );
         this.addError("Invalid declaration in expression", ErrorType.SEMANTIC, token.loc);
+        this.synchronize();
         return null;
       }
 
@@ -801,6 +830,7 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
+          this.synchronize();
           return null;
         }
         if (!variable.assigned) {
@@ -809,6 +839,7 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
+          this.synchronize();
         }
         return {
           type: "Variable",
@@ -822,41 +853,96 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!this.isIfKeyword(this.tokens[0])) {
         return null;
       }
-      this.tokens.shift();
+      this.tokens.shift(); // consume 'if'
 
       if (!this.consumeToken("(", "Expected '(' after 'if'")) {
+        this.synchronize();
         return null;
       }
 
       const condition = this.parseCondition();
       if (!condition) {
+        this.addError("Invalid condition in 'if' statement", ErrorType.SYNTAX);
+        this.synchronize();
         return null;
       }
 
       if (!this.consumeToken(")", "Expected ')' after condition")) {
+        this.synchronize();
         return null;
       }
 
       const thenBranch = this.parseBlock();
       if (!thenBranch) {
+        this.addError("Missing block after 'if' condition", ErrorType.SYNTAX);
+        this.synchronize();
         return null;
       }
 
       const ifNode = { type: "IfStatement", condition, thenBranch };
 
       let elseIfBranches = [];
+      let hasElse = false;
+
       while (this.tokens[0]?.value === "else") {
-        this.tokens.shift();
+        this.tokens.shift(); // consume 'else'
+
         if (this.isIfKeyword(this.tokens[0])) {
-          const elseIfNode = this.parseIfStatement("else if");
-          if (elseIfNode) {
-            elseIfBranches.push(elseIfNode);
+          this.tokens.shift(); // consume 'if'
+
+          if (this.tokens[0]?.value === "{") {
+            this.addError("Missing condition in 'else if' statement — expected '(' before block", ErrorType.SYNTAX);
+            this.synchronize();
+            continue;
           }
+
+          // Validate condition exists after 'else if'
+          if (!this.consumeToken("(", "Expected '(' after 'else if'")) {
+            this.synchronize();
+            continue;
+          }
+
+          const elseIfCondition = this.parseCondition();
+          if (!elseIfCondition) {
+            this.addError("Invalid condition in 'else if' statement", ErrorType.SYNTAX);
+            this.synchronize();
+            continue;
+          }
+
+          if (!this.consumeToken(")", "Expected ')' after 'else if' condition")) {
+            this.synchronize();
+            continue;
+          }
+
+          const elseIfBranch = this.parseBlock();
+          if (!elseIfBranch) {
+            this.addError("Missing block after 'else if' condition", ErrorType.SYNTAX);
+            this.synchronize();
+            continue;
+          }
+
+          elseIfBranches.push({
+            type: "ElseIfStatement",
+            condition: elseIfCondition,
+            thenBranch: elseIfBranch,
+          });
+
         } else {
+          // If it's a standalone 'else'
           const elseBlock = this.parseBlock();
-          if (elseBlock) ifNode.elseBranch = elseBlock;
+          if (!elseBlock) {
+            this.addError("Missing block after 'else'", ErrorType.SYNTAX);
+            this.synchronize();
+            continue;
+          }
+          ifNode.elseBranch = elseBlock;
+          hasElse = true;
           break;
         }
+      }
+
+      if (elseIfBranches.length > 0 && !hasElse) {
+        this.addError("Missing 'else' block after 'else if' chain", ErrorType.SYNTAX);
       }
 
       if (elseIfBranches.length > 0) {
@@ -866,9 +952,11 @@ document.addEventListener("DOMContentLoaded", function () {
       return ifNode;
     }
 
+
     parseCondition() {
       if (this.tokens.length < 3) {
         this.addError("Incomplete condition", ErrorType.SYNTAX);
+        this.synchronize();
         return null;
       }
       const savedTokens = [...this.tokens];
@@ -917,7 +1005,8 @@ document.addEventListener("DOMContentLoaded", function () {
           ErrorType.SYNTAX,
           operatorToken?.loc
         );
-        return null;
+        this.synchronize();
+        return;
       }
 
       // Parse right side - using similar approach as left side
@@ -996,7 +1085,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     parseBlock() {
-      if (!this.consumeToken("{", "Expected '{'")) return null;
+      if (!this.consumeToken("{", "Expected '{'")) {
+          this.synchronize();
+          return null;
+      }
 
       this.pushScope();
       const statements = [];
@@ -1006,24 +1098,36 @@ document.addEventListener("DOMContentLoaded", function () {
         if (this.isLoopKeyword(this.tokens[0])) {
           const loopStatement = this.parseLoop(this.tokens[0].value);
           if (loopStatement) statements.push(loopStatement);
-          else
+          else {
             this.addError("Failed to parse loop statement", ErrorType.SYNTAX);
+            this.synchronize();
+          }
         } else if (this.isIfKeyword(this.tokens[0])) {
           const ifStatement = this.parseIfStatement();
           if (ifStatement) statements.push(ifStatement);
-          else this.addError("Failed to parse if statement", ErrorType.SYNTAX);
+          else {
+            this.addError("Failed to parse if statement", ErrorType.SYNTAX);
+            this.synchronize();
+            return null;
+          }
         }
         // Check for method calls (object.method())
         else if (this.isMethodCall(this.tokens)) {
           const methodCall = this.parseMethodCall();
           if (methodCall) statements.push(methodCall);
-          else this.addError("Failed to parse method call", ErrorType.SYNTAX);
+          else {
+            this.addError("Failed to parse method call", ErrorType.SYNTAX);
+            this.synchronize();
+          }
         }
         // Check for assignments with type declarations (int x = 5)
         else if (this.isAssignment(this.tokens)) {
           const assignment = this.parseAssignment();
           if (assignment) statements.push(assignment);
-          else this.addError("Failed to parse assignment", ErrorType.SYNTAX);
+          else {
+            this.addError("Failed to parse assignment", ErrorType.SYNTAX);
+            this.synchronize();
+          }
         }
         // Check for increment/decrement operations (x++ or ++x)
         else if (
@@ -1055,6 +1159,7 @@ document.addEventListener("DOMContentLoaded", function () {
               `Error parsing statement: ${e.message}`,
               ErrorType.SYNTAX
             );
+            this.synchronize();
             while (
               this.tokens.length > 0 &&
               this.tokens[0]?.value !== ";" &&
@@ -1068,6 +1173,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (this.tokens.length === 0) {
         this.addError("Unclosed block: Missing '}'", ErrorType.SYNTAX);
+        this.synchronize();
       } else {
         this.tokens.shift(); // Consume '}'
       }
@@ -1108,6 +1214,7 @@ document.addEventListener("DOMContentLoaded", function () {
           ErrorType.SYNTAX,
           this.tokens[0]?.loc
         );
+        this.synchronize();
         return { type: "MethodCall", object, method, arguments: args };
       }
 
@@ -1140,14 +1247,18 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
+          this.synchronize();
           return null;
         }
 
-        if (!this.consumeToken("while", "Expected 'while' after do block"))
+        if (!this.consumeToken("while", "Expected 'while' after do block")){
+          this.synchronize();
           return null;
-
-        if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
-
+        }
+        if (!this.consumeToken("(", "Expected '(' after 'while'")) {
+          return null;
+          this.synchronize();
+        }
         const condition = this.parseCondition();
         if (!condition) {
           this.addError(
@@ -1155,34 +1266,34 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
+          this.synchronize();
           return null;
         }
 
-        if (
-          !this.consumeToken(
-            ")",
-            "Expected ')' after condition in do-while loop"
-          )
-        )
+        if (!this.consumeToken(")", "Expected ')' after condition in do-while loop")) {
+          this.synchronize();
           return null;
-
+        }
         this.consumeSemicolon("Missing semicolon after do-while loop");
+        this.synchronize();
         return { type: "DoWhileLoop", condition, body };
       } else if (loopType === "while") {
         this.tokens.shift(); // Consume 'while'
-        if (!this.consumeToken("(", "Expected '(' after 'while'")) return null;
-
+        if (!this.consumeToken("(", "Expected '(' after 'while'")) {
+          this.synchronize();
+          return null;
+        }
         const condition = this.parseCondition();
         if (!condition) {
           this.addError("Invalid condition in while loop", ErrorType.SYNTAX);
+          this.synchronize();
           return null;
         }
 
-        if (
-          !this.consumeToken(")", "Expected ')' after condition in while loop")
-        )
+        if (!this.consumeToken(")", "Expected ')' after condition in while loop")) {
+          this.synchronize();
           return null;
-
+        }
         const body = this.parseBlock();
         if (!body) {
           this.addError(
@@ -1190,14 +1301,17 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
+          this.synchronize();
           return null;
         }
 
         return { type: "WhileLoop", condition, body };
       } else if (loopType === "for") {
         this.tokens.shift(); // Consume 'for'
-        if (!this.consumeToken("(", "Expected '(' after 'for'")) return null;
-
+        if (!this.consumeToken("(", "Expected '(' after 'for'")) {
+          this.synchronize();
+          return null;
+        }
         let init;
         if (this.isAssignment(this.tokens)) {
           init = this.parseAssignment();
@@ -1213,25 +1327,19 @@ document.addEventListener("DOMContentLoaded", function () {
             const value = this.parseLiteralOrExpression(valueToken);
             this.assignVariable(identifier);
             init = { type: "Assignment", identifier: identifier, value: value };
-            if (
-              !this.consumeToken(
-                ";",
-                "Expected ';' after initialization in for loop"
-              )
-            )
+            if (!this.consumeToken(";","Expected ';' after initialization in for loop")){
+              this.synchronize();
               return null;
+            }
           } else {
             while (this.tokens.length > 0 && this.tokens[0].value !== ";") {
               this.tokens.shift();
             }
             init = { type: "EmptyStatement" };
-            if (
-              !this.consumeToken(
-                ";",
-                "Expected ';' after initialization in for loop"
-              )
-            )
+            if (!this.consumeToken(";","Expected ';' after initialization in for loop")) {
+              this.synchronize();
               return null;
+            }
           }
         }
 
@@ -1241,10 +1349,10 @@ document.addEventListener("DOMContentLoaded", function () {
           this.tokens.shift(); // Consume ';'
         } else {
           condition = this.parseCondition();
-          if (
-            !this.consumeToken(";", "Expected ';' after condition in for loop")
-          )
+          if (!this.consumeToken(";", "Expected ';' after condition in for loop")) {
+            this.synchronize();
             return null;
+          }
         }
 
         let iteration;
@@ -1254,14 +1362,10 @@ document.addEventListener("DOMContentLoaded", function () {
           iteration = this.parseIteration();
         }
 
-        if (
-          !this.consumeToken(
-            ")",
-            "Expected ')' after iteration expression in for loop"
-          )
-        )
+        if (!this.consumeToken(")","Expected ')' after iteration expression in for loop")) {
+          this.synchronize();
           return null;
-
+        }
         const body = this.parseBlock();
         if (!body) {
           this.addError(
@@ -1269,6 +1373,7 @@ document.addEventListener("DOMContentLoaded", function () {
             ErrorType.SYNTAX,
             this.tokens[0]?.loc
           );
+          this.synchronize();
           return null;
         }
         return { type: "ForLoop", init, condition, iteration, body };
@@ -1340,13 +1445,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
     parseSwitchStatement() {
       this.tokens.shift(); // Consume 'switch'
-      if (!this.consumeToken("(", "Expected ( after switch")) return null;
+      if (!this.consumeToken("(", "Expected ( after switch")) {
+          this.synchronize();
+          return null;
+      }
       const expression = this.parseExpression();
-      if (!this.consumeToken(")", "Expected ) after switch expression"))
+      if (!this.consumeToken(")", "Expected ) after switch expression")) {
+        this.synchronize();
         return null;
-      if (!this.consumeToken("{", "Expected { after switch expression"))
+      }
+      if (!this.consumeToken("{", "Expected { after switch expression")) {
+        this.synchronize();
         return null;
-
+      }
       const cases = [];
       let defaultCase = null;
 
@@ -1355,9 +1466,10 @@ document.addEventListener("DOMContentLoaded", function () {
           this.tokens.shift(); // Consume 'case'
           const condition = this.parseExpression();
           if (!condition) return null;
-          if (!this.consumeToken(":", "Expected : after case condition"))
+          if (!this.consumeToken(":", "Expected : after case condition")) {
+            this.synchronize();
             return null;
-
+          }
           const body = [];
           while (
             this.tokens.length > 0 &&
@@ -1372,9 +1484,10 @@ document.addEventListener("DOMContentLoaded", function () {
           cases.push({ type: "CaseStatement", condition, body });
         } else if (this.tokens[0]?.value === "default") {
           this.tokens.shift(); // Consume 'default'
-          if (!this.consumeToken(":", "Expected : after default keyword"))
+          if (!this.consumeToken(":", "Expected : after default keyword")) {
+            this.synchronize();
             return null;
-
+          }
           const body = [];
           while (
             this.tokens.length > 0 &&
@@ -1392,12 +1505,15 @@ document.addEventListener("DOMContentLoaded", function () {
             "Invalid statement inside switch block",
             ErrorType.SYNTAX
           );
+          this.synchronize();
           return null;
         }
       }
 
-      if (!this.consumeToken("}", "Expected } to close switch statement"))
+      if (!this.consumeToken("}", "Expected } to close switch statement")) {
+        this.synchronize();
         return null;
+      }
 
       return { type: "SwitchStatement", expression, cases, defaultCase };
     }
@@ -1411,6 +1527,7 @@ document.addEventListener("DOMContentLoaded", function () {
         value = this.parseExpression();
 
       this.consumeSemicolon(`Expected semicolon after ${statementType}`);
+      this.synchronize();
 
       if (statementType === "break") {
         return { type: "BreakStatement" };
@@ -1561,6 +1678,7 @@ document.addEventListener("DOMContentLoaded", function () {
           ErrorType.SYNTAX,
           this.tokens[0]?.loc
         );
+        this.synchronize();
       }
     }
 
@@ -1570,6 +1688,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return true;
       } else {
         this.addError(errorMessage, ErrorType.SYNTAX, this.tokens[0]?.loc);
+        this.synchronize();
         return false;
       }
     }
@@ -1581,6 +1700,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "println method expects one argument.",
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         }
       }
     }
@@ -1592,6 +1712,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `Variable '${identifier}' already declared in this scope.`,
           ErrorType.SEMANTIC
         );
+        this.synchronize();
         return false;
       }
       currentScope[identifier] = {
@@ -1614,6 +1735,7 @@ document.addEventListener("DOMContentLoaded", function () {
         `Variable '${identifier}' is not declared.`,
         ErrorType.SEMANTIC
       );
+      this.synchronize();
     }
 
     dataType(token) {
@@ -1639,11 +1761,13 @@ document.addEventListener("DOMContentLoaded", function () {
       if (statement) {
         if (statement.error) {
           this.addError(statement.error, ErrorType.SYNTAX);
+          this.synchronize();
           return;
         }
         statements.push(statement);
       } else {
         this.addError(errorMessage, ErrorType.SYNTAX);
+        this.synchronize();
       }
     }
 
@@ -1667,6 +1791,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `Variable '${left.value}' in condition is not declared`,
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         } else {
           left.dataType = varInfo.type;
           if (!varInfo.assigned) {
@@ -1674,6 +1799,7 @@ document.addEventListener("DOMContentLoaded", function () {
               `Variable '${left.value}' used in before being assigned a value.`,
               ErrorType.SEMANTIC
             );
+            this.synchronize();
           }
         }
       }
@@ -1684,6 +1810,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `Variable '${right.value}' in condition is not declared`,
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         } else {
           right.dataType = varInfo.type;
           if (!varInfo.assigned) {
@@ -1691,6 +1818,7 @@ document.addEventListener("DOMContentLoaded", function () {
               `Variable '${right.value}' used in condition before assignment.`,
               ErrorType.SEMANTIC
             );
+            this.synchronize();
           }
         }
       }
@@ -1700,6 +1828,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `Invalid comparison: '${right.value}' does not match type '${left.dataType}' of '${left.value}'`,
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         }
       }
       if (left?.type === "Literal" && right?.type === "Variable") {
@@ -1708,6 +1837,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `Invalid comparison: '${left.value}' does not match type '${right.dataType}' of '${right.value}'`,
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         }
       }
       if (left?.type === "Variable" && right?.type === "Variable") {
@@ -1716,6 +1846,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `Type mismatch in condition: ' ${left.dataType}' to '${right.dataType}' comparison. ''`,
             ErrorType.SEMANTIC
           );
+          this.synchronize();
         }
       }
 
@@ -1739,9 +1870,11 @@ document.addEventListener("DOMContentLoaded", function () {
           `Datatypes mismatch: '${left.dataType}' and '${right.dataType}' in condition`,
           ErrorType.SEMANTIC
         );
+        this.synchronize();
       }
       if (operator === "=") {
         this.addError(`Invalid operator '=' in condition`, ErrorType.SEMANTIC);
+        this.synchronize();
       }
 
       if (
@@ -1754,6 +1887,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (["+", "-", "*", "/"].includes(operator)) {
         this.addError(`Invalid comparison in condition`, ErrorType.SEMANTIC);
+        this.synchronize();
       }
 
       if (
@@ -1764,6 +1898,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `Invalid comparison between the datatypes in condition`,
           ErrorType.SEMANTIC
         );
+        this.synchronize();
       }
 
       if (
@@ -1774,10 +1909,12 @@ document.addEventListener("DOMContentLoaded", function () {
           `Invalid comparison between the datatypes in condition`,
           ErrorType.SEMANTIC
         );
+        this.synchronize();
       }
 
       if (left.type === "Literal" && right.type === "Literal") {
         this.addError(`infinite comparison in condition`, ErrorType.SEMANTIC);
+        this.synchronize();
       }
     }
   }
