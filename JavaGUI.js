@@ -157,6 +157,10 @@ document.addEventListener("DOMContentLoaded", function () {
     let inComment = false;
     let inMultilineComment = false;
 
+    function isDigit(ch) {
+      return ch >= '0' && ch <= '9';
+    }
+
     for (let i = 0; i < x.length; i++) {
       let ch = x.charAt(i);
       if (!q) {
@@ -206,6 +210,26 @@ document.addEventListener("DOMContentLoaded", function () {
         preprocessor[markers.prepMarker++] = x.substring(p, i + 1);
         tokens.push({ type: "preprocessor", value: x.substring(p, i + 1) });
         inPreprocessor = false;
+        p = i + 1;
+        continue;
+      }
+
+      if (!q && isDigit(ch)) {
+        let numStr = ch;
+        let j = i + 1;
+        let hasDecimal = false;
+        while (j < x.length && (isDigit(x.charAt(j)) || x.charAt(j) === '.')) {
+          if (x.charAt(j) === '.') {
+          if (hasDecimal) break;
+            hasDecimal = true;
+          }
+          numStr += x.charAt(j);
+          j++;
+        }
+        i = j - 1;
+        const tokenType = "constant";
+        constants[markers.consMarker++] = numStr;
+        tokens.push({ type: tokenType, value: numStr });
         p = i + 1;
         continue;
       }
@@ -328,31 +352,25 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
-  function processToken(
-    x,
-    start,
-    end,
-    keywords,
-    constants,
-    identifiers,
-    tokens,
-    markers
-  ) {
+  function processToken(x, start, end, keywords, constants, identifiers, tokens, markers) {
     if (start !== end) {
-      let token = x.substring(start, end);
-      if (isKeyword(token)) {
-        keywords[markers.keyMarker++] = token;
-        tokens.push({ type: "keyword", value: token });
-      } else if (isConstant(token)) {
-        constants[markers.consMarker++] = token;
-        tokens.push({ type: "constant", value: token });
-      } else if (token.trim() !== "") {
-        identifiers[markers.idMarker++] = token;
-        tokens.push({ type: "identifier", value: token });
-      }
+        let token = x.substring(start, end).trim();
+        if (token) {
+            if (isKeyword(token)) {
+                keywords[markers.keyMarker++] = token;
+                tokens.push({ type: "keyword", value: token });
+            } else if (token === "true" || token === "false") {
+                tokens.push({ type: "literal", value: token, dataType: "boolean" });
+            } else if (isConstant(token)) {
+                constants[markers.consMarker++] = token;
+                tokens.push({ type: "constant", value: token });
+            } else {
+                identifiers[markers.idMarker++] = token;
+                tokens.push({ type: "identifier", value: token });
+            }
+        }
     }
   }
-
   function display(name, arr, mark) {
     let output = name;
     const unique = [];
@@ -795,11 +813,11 @@ function isFloat(str) {
     }
 
     parseLiteralOrExpression(token) {
-      if (!token) 
-        {
-          this.addError("Missing token in expression", ErrorType.SYNTAX, token?.loc);
-          return null;
-        }
+      if (!token) {
+        this.addError("Missing token in expression", ErrorType.SYNTAX, token?.loc);
+        this.synchronize();
+        return null;
+      }
 
       const typeKeywords = [
         "int",
@@ -816,6 +834,7 @@ function isFloat(str) {
           token.loc
         );
         this.addError("Invalid declaration in expression", ErrorType.SEMANTIC, token.loc);
+        this.synchronize();
         return null;
       }
 
@@ -828,7 +847,9 @@ function isFloat(str) {
       }
 
       if (token.type === "literal") {
-        if (token.value.startsWith('"') && token.value.endsWith('"')) {
+        if(token.value === "true" || token.value === "false") {
+          return { type: "Literal", value: token.value, dataType: "Boolean" };
+        } else if (token.value.startsWith('"') && token.value.endsWith('"')) {
           return { type: "Literal", value: token.value, dataType: "String" };
         } else if (
           token.value.startsWith("'") &&
@@ -853,6 +874,7 @@ function isFloat(str) {
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
+          this.synchronize();
           return null;
         }
         if (!variable.assigned) {
@@ -861,6 +883,7 @@ function isFloat(str) {
             ErrorType.SEMANTIC,
             this.tokens[0]?.loc
           );
+          this.synchronize();
         }
         return {
           type: "Variable",
@@ -869,6 +892,7 @@ function isFloat(str) {
         };
       }
     }
+
 
     parseIfStatement(context = "if") {
       if (!this.isIfKeyword(this.tokens[0])) {
