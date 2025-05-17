@@ -542,23 +542,27 @@ function isFloat(str) {
         if (token.value === "{") 
         {
           braceDepth++; // Track entering a nested block
+          this.tokens.shift()
         } 
         else if (token.value === "}") 
         {
           if (braceDepth === 0) 
           {
-            this.tokens.shift(); // Consume closing brace if at top level
             break;
           }
           braceDepth--; // Exit from a nested block
+          this.tokens.shift(); // Consume closing brace if at top level
         }
         else if (braceDepth === 0 &&
           (token.value === ";" || ["if", "for", "while", "class", "switch", "return", "break", "continue"].includes(token.value))) //Statement end for ; or Start of new statement
         {
           break; // Stop at statement boundary to resume parsing
         }
-
-        this.tokens.shift(); // Skip current token and continue
+        else
+        {
+          this.tokens.shift(); // Skip current token and continue
+        }
+        
       }
     }
 
@@ -1408,7 +1412,6 @@ function isFloat(str) {
         // Parse opening parenthesis
         if (!this.consumeToken("(", "Expected '(' after 'for'")) 
         {
-          this.synchronize(); //Synchronizes and handles the error to avoid mishandling
           return null;
         }
         
@@ -1431,7 +1434,7 @@ function isFloat(str) {
             const value = this.parseLiteralOrExpression(valueToken);
             this.assignVariable(identifier);
             init = { type: "Assignment", identifier: identifier, value: value };
-            if (!this.consumeToken(";","Expected ';' after initialization in for loop"))
+            if (!this.consumeToken(";","Expected ';' after initialization and before condition in for loop"))
             {
               return null;
             }
@@ -1444,7 +1447,7 @@ function isFloat(str) {
               this.tokens.shift();
             }
             init = { type: "EmptyStatement" };
-            if (!this.consumeToken(";","Expected ';' after initialization in for loop")) 
+            if (!this.consumeToken(";","Expected ';' after initialization and before condition in for loop")) 
             {
               return null;
             }
@@ -1456,6 +1459,7 @@ function isFloat(str) {
         if (this.tokens[0]?.value === ";") 
         {
           // Handle empty condition (e.g., for(init;;update))
+          this.synchronize();
           condition = { type: "EmptyStatement" };
           this.tokens.shift(); // Consume ';'
         } 
@@ -1463,7 +1467,7 @@ function isFloat(str) {
         {
           // Parse regular condition
           condition = this.parseCondition();
-          if (!this.consumeToken(";", "Expected ';' after condition in for loop")) 
+          if (!this.consumeToken(";", "Expected ';' after condition and before iteration in for loop")) 
           {
             return null;
           }
@@ -1474,6 +1478,7 @@ function isFloat(str) {
         if (this.tokens[0]?.value === ")") 
         {
           // Handle empty iteration (e.g., for(init;condition;))
+          this.synchronize();
           iteration = { type: "EmptyStatement" };
         } 
         else 
@@ -1492,6 +1497,7 @@ function isFloat(str) {
         if (!body) 
         {
           this.addError("Invalid body in for loop", ErrorType.SYNTAX, this.tokens[0]?.loc);
+          this.synchronize();
           return null;
         }
         
@@ -1876,7 +1882,8 @@ function isFloat(str) {
      * @param {string} context - Error context message
      * @param {string|null} identifier - Optional identifier name for error message
      */
-    consumeSemicolon(context = "statement", identifier = null) {
+    consumeSemicolon(context = "statement", identifier = null)
+    {
       if (this.tokens.length > 0 && this.tokens[0]?.type === "punctuator" && this.tokens[0]?.value === ";") 
       {
         this.tokens.shift();
