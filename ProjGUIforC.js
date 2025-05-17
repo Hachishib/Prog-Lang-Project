@@ -1941,7 +1941,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   }
-  window.analyzeAndParseC = analyzeAndParseC;
+  window.analyzeAndParseC = analyzeAndParseC; // It makes the Function acceable to the main JS
   window.displayOutput = displayOutput;
   window.displayAST = displayAST;
   window.displayErrors = displayErrors;

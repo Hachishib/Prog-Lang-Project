@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>program.ME</title>
     <link rel="stylesheet" href="GuiStyle.css" />
+    <!-- Link to custom CSS file for styling -->
     <script src="ProjGUIforC.js"></script>
+    <!-- Parser  for C language -->
     <script src="JavaGUI.js"></script>
+    <!-- Main File and Parser of Java -->
 
     <link
       rel="stylesheet"
@@ -14,6 +17,7 @@
     />
   </head>
   <body>
+    <!-- Top navigation bar with dropdown sections -->
     <nav class="top-nav no-js-nav">
       <details class="nav-popup">
         <summary><i class="fas fa-file"></i> File</summary>
@@ -25,6 +29,7 @@
         </div>
       </details>
 
+      <!-- User Guide or Help-->
       <details class="nav-popup">
         <summary><i class="fas fa-question-circle"></i> Help</summary>
         <div class="popup-content">
@@ -43,7 +48,7 @@
           <br /><br />
         </div>
       </details>
-
+      <!-- information of The Compiler and the Mmebers-->
       <details class="nav-popup">
         <summary><i class="fas fa-info-circle"></i> About</summary>
         <div class="popup-content">
@@ -59,10 +64,12 @@
         </div>
       </details>
 
+      <!-- Share button  -->
       <button class="no-js-share">
         <i class="fas fa-share-alt"></i> Share
       </button>
 
+      <!-- Language selector for switching between Java and C -->
       <details class="nav-popup">
         <summary><i class="fas fa-info-circle"></i> Language</summary>
         <div class="popup-content-L">
@@ -75,6 +82,7 @@
         </div>
       </details>
 
+      <!-- Dark/light mode toggle button -->
       <div class="icon">
         <button class="button" id="toggleMode">☀️</button>
       </div>
@@ -96,7 +104,7 @@
       </header>
       <!-- more content -->
     </div>
-
+    <!-- Script to hide loader after 3 seconds -->
     <script>
       setTimeout(() => {
         document.body.classList.add("loaded");
@@ -107,17 +115,21 @@
     <div class="container">
       <div class="box">
         <label for="inputWrite"><strong>ENTER YOUR CODE</strong></label>
+        <!-- Code input area -->
         <textarea id="inputWrite" class="text"></textarea>
         <label for="outputWrite"><strong> LEXICAL ANALYSIS</strong></label>
+        <!-- Lexical analysis result -->
         <textarea id="outputWrite" class="Lextext" readonly></textarea>
       </div>
       <div id="ast" class="box">
         <label><strong>ABSTRACT SYNTAX TREE</strong></label>
         <pre id="astOutput" class="ast-box"></pre>
+        <!-- AST (Abstract Syntax Tree) display area -->
       </div>
     </div>
 
     <div class="error-container">
+      <!-- Error message display section -->
       <div id="error" class="box">
         <label><strong>ERRORS</strong> </label>
         <div id="errorOutput" class="error-box"></div>
@@ -125,6 +137,7 @@
     </div>
 
     <div class="button-layer">
+      <!-- Button to trigger code Parser -->
       <button class="convert-button">CONVERT</button>
     </div>
 
@@ -151,7 +164,7 @@
         <p>Lexer Analyzer by Program.M7 💻</p>
       </div>
     </div>
-
+    <!-- Language button selection logic -->
     <script>
       document.querySelectorAll(".language-btn").forEach((btn) => {
         btn.addEventListener("click", function () {
@@ -161,16 +174,14 @@
           this.classList.add("active");
         });
       });
-
+      // Toggle between light and dark mode
       const toggleButton = document.getElementById("toggleMode");
       isDarkMode = false;
 
       toggleButton.addEventListener("click", function () {
         isDarkMode = !isDarkMode;
         document.body.classList.toggle("dark-mode", isDarkMode);
-        toggleButton.textContent = isDarkMode
-          ? "🌙"
-          : "☀️"; /* para magchange icon */
+        toggleButton.textContent = isDarkMode ? "🌙" : "☀️"; // Change icon depending on mode
       });
     </script>
   </body>
