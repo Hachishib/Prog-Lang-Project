@@ -1211,7 +1211,7 @@ function isFloat(str) {
           if (iteration) 
           {
             statements.push(iteration);
-            this.consumeSemicolon("Expected semicolon after increment/decrement");
+            this.consumeToken(";", "Expected semicolon after increment/decrement");
           }
         }
         // Try to parse as a general expression or statement
