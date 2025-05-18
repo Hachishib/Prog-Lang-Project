@@ -592,20 +592,15 @@ document.addEventListener("DOMContentLoaded", function () {
       if (this.tokens.length === 0) return null;
 
       // Check for different statement types and dispatch to specialized parsers
-      if (this.isClassDeclaration(this.tokens))
-        return this.parseClassDeclaration();
-      if (this.isMethodDeclaration(this.tokens))
-        return this.parseMethodDeclaration();
-      if (this.isLoopKeyword(this.tokens[0]))
-        return this.parseLoop(this.tokens[0].value);
+      if (this.isClassDeclaration(this.tokens)) return this.parseClassDeclaration();
+      if (this.isMethodDeclaration(this.tokens)) return this.parseMethodDeclaration();
+      if (this.isLoopKeyword(this.tokens[0])) return this.parseLoop(this.tokens[0].value);
       if (this.isAssignment(this.tokens)) return this.parseAssignment();
       if (this.isIfKeyword(this.tokens[0])) return this.parseIfStatement();
       if (this.isMethodCall(this.tokens)) return this.parseMethodCall();
       if (this.isDeclaration(this.tokens)) return this.parseDeclaration();
-      if (this.isSwitchKeyword(this.tokens[0]))
-        return this.parseSwitchStatement();
-      if (["break", "continue", "return"].includes(this.tokens[0]?.value))
-        return this.parseExitStatement();
+      if (this.isSwitchKeyword(this.tokens[0])) return this.parseSwitchStatement();
+      if (this.isExitStatement(this.tokens[0])) return this.parseExitStatement();
 
       // If no specialized statement, try to parse as a general expression
       const expr = this.parseExpression();
@@ -1083,6 +1078,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Parse closing parenthesis
       if (!this.consumeToken(")", "Expected ')' after condition")) {
+        this.synchronize();
         return null;
       }
 
@@ -1107,19 +1103,10 @@ document.addEventListener("DOMContentLoaded", function () {
           // Parse else-if branch
           this.tokens.shift(); // consume 'if'
 
-          // Check for missing condition
-          if (this.tokens[0]?.value === "{") {
-            this.addError(
-              "Missing condition in 'else if' statement — expected '(' before block",
-              ErrorType.SYNTAX
-            );
-            this.synchronize();
-            continue;
-          }
-
           // Parse opening parenthesis
           if (!this.consumeToken("(", "Expected '(' after 'else if'")) {
             this.synchronize();
+            break;
           }
 
           // Parse else-if condition
@@ -1134,9 +1121,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }
 
           // Parse closing parenthesis
-          if (
-            !this.consumeToken(")", "Expected ')' after 'else if' condition")
-          ) {
+          if (!this.consumeToken(")", "Expected ')' after 'else if' condition")) {
             this.synchronize();
             break;
           }
@@ -1148,8 +1133,7 @@ document.addEventListener("DOMContentLoaded", function () {
               "Missing block after 'else if' condition",
               ErrorType.SYNTAX
             );
-            this.synchronize();
-            continue;
+            break;
           }
 
           // Add else-if branch to list
@@ -1164,10 +1148,9 @@ document.addEventListener("DOMContentLoaded", function () {
           if (!elseBlock) {
             this.addError("Missing block after 'else'", ErrorType.SYNTAX);
             this.synchronize();
-            continue;
+            break;
           }
           ifNode.elseBranch = elseBlock;
-          hasElse = true;
           break;
         }
       }
@@ -1275,8 +1258,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const iteration = this.parseIteration();
           if (iteration) {
             statements.push(iteration);
-            this.consumeToken(
-              ";",
+            this.consumeSemicolon(
               "Expected semicolon after increment/decrement"
             );
           }
