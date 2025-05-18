@@ -137,6 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function analyzeAndParseJava(x) {
+    // arrays and variables for storing data
     let lexOutput = "";
     let operators = new Array(x.length);
     let constants = new Array(x.length);
@@ -160,11 +161,11 @@ document.addEventListener("DOMContentLoaded", function () {
     let inComment = false;
     let inMultilineComment = false;
 
-    function isDigit(ch) {
+    function isDigit(ch) { // declaration of digit
       return ch >= "0" && ch <= "9";
     }
 
-    for (let i = 0; i < x.length; i++) {
+    for (let i = 0; i < x.length; i++) {// function for storing comment both single and multiline comment
       let ch = x.charAt(i);
       if (!q) {
         if (ch === "/" && i + 1 < x.length && x.charAt(i + 1) === "/") {
@@ -194,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      if (
+      if (// function for processor check if the user input has library starts with '#'
         !q &&
         !inComment &&
         !inMultilineComment &&
@@ -210,14 +211,14 @@ document.addEventListener("DOMContentLoaded", function () {
         ) {
           i++;
         }
-        preprocessor[markers.prepMarker++] = x.substring(p, i + 1);
+        preprocessor[markers.prepMarker++] = x.substring(p, i + 1);// stored the processor
         tokens.push({ type: "preprocessor", value: x.substring(p, i + 1) });
         inPreprocessor = false;
         p = i + 1;
         continue;
       }
 
-      if (!q && isDigit(ch)) {
+      if (!q && isDigit(ch)) {// make the dot(.) with number beside it a float instead of int
         let numStr = ch;
         let j = i + 1;
         let hasDecimal = false;
@@ -231,13 +232,13 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         i = j - 1;
         const tokenType = "constant";
-        constants[markers.consMarker++] = numStr;
+        constants[markers.consMarker++] = numStr;// stored the constant
         tokens.push({ type: tokenType, value: numStr });
         p = i + 1;
         continue;
       }
 
-      if ((ch === '"' || ch === "'") && !inComment && !inMultilineComment) {
+      if ((ch === '"' || ch === "'") && !inComment && !inMultilineComment) {// function for the literals in user input
         if (q) {
           if (x.charAt(i - 1) !== "\\") {
             q = !q;
@@ -247,7 +248,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (!q) {
           const lit = x.substring(p, i + 1);
-          literals[markers.litMarker++] = lit;
+          literals[markers.litMarker++] = lit;// stored the literal
           tokens.push({ type: "literal", value: lit });
           p = i + 1;
         } else {
@@ -256,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
         continue;
       }
 
-      if (!q && ch === ".") {
+      if (!q && ch === ".") {// special condition for dot to separate . in float and dot as punctuator 
         processToken(
           x,
           p,
@@ -267,12 +268,12 @@ document.addEventListener("DOMContentLoaded", function () {
           tokens,
           markers
         );
-        punctuators[markers.puncMarker++] = ".";
+        punctuators[markers.puncMarker++] = ".";// stored dot (.)
         tokens.push({ type: "punctuator", value: "." });
         p = i + 1;
         continue;
       }
-      if (
+      if (// storing of tokens
         !q &&
         (isWhitespace(ch) || isPunctuation(x, i) || isOperatorChar(ch))
       ) {
@@ -287,22 +288,22 @@ document.addEventListener("DOMContentLoaded", function () {
           markers
         );
         if (isPunctuation(x, i)) {
-          punctuators[markers.puncMarker++] = String(ch);
+          punctuators[markers.puncMarker++] = String(ch);// stored punctuator
           tokens.push({ type: "punctuator", value: ch });
           p = i + 1;
         } else if (i < x.length - 1 && !isWhitespace(ch)) {
           let op2 = x.substring(i, i + 2);
           if (isOperator(op2)) {
-            operators[markers.opMarker++] = op2;
+            operators[markers.opMarker++] = op2;// stored single character operator
             tokens.push({ type: "operator", value: op2 });
             i++;
-          } else if (isOperatorChar(ch)) {
+          } else if (isOperatorChar(ch)) {// stored double character operator
             operators[markers.opMarker++] = String(ch);
             tokens.push({ type: "operator", value: ch });
           }
           p = i + 1;
         } else if (isOperatorChar(ch)) {
-          operators[markers.opMarker++] = String(ch);
+          operators[markers.opMarker++] = String(ch);// for filtering 
           tokens.push({ type: "operator", value: ch });
           p = i + 1;
         } else {
@@ -311,7 +312,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    if (p < x.length && !q) {
+    if (p < x.length && !q) {// process the token to designated function
       processToken(
         x,
         p,
@@ -323,6 +324,7 @@ document.addEventListener("DOMContentLoaded", function () {
         markers
       );
     }
+    // display tokens 
     lexOutput += "\n";
     lexOutput += display("Keywords    : \t", keywords, markers.keyMarker);
     lexOutput += "\n";
@@ -337,6 +339,7 @@ document.addEventListener("DOMContentLoaded", function () {
     lexOutput += display("Literals       :\t", literals, markers.litMarker);
     lexOutput += "\n";
 
+    //filter the charater that left out
     const filteredTokens = tokens.filter(
       (token) =>
         token.value.trim() !== "" &&
@@ -345,6 +348,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const parser = new Parser(filteredTokens);
     const ast = parser.parse();
 
+    //return the data gathered
     return {
       lexOutput: lexOutput,
       ast: ast,
@@ -366,22 +370,22 @@ document.addEventListener("DOMContentLoaded", function () {
       let token = x.substring(start, end).trim();
       if (token) {
         if (isKeyword(token)) {
-          keywords[markers.keyMarker++] = token;
+          keywords[markers.keyMarker++] = token; // stored keywords
           tokens.push({ type: "keyword", value: token });
-        } else if (token === "true" || token === "false") {
+        } else if (token === "true" || token === "false") {// for boolean value
           tokens.push({ type: "literal", value: token, dataType: "boolean" });
         } else if (isConstant(token)) {
-          constants[markers.consMarker++] = token;
+          constants[markers.consMarker++] = token;// stored constant
           tokens.push({ type: "constant", value: token });
         } else {
-          identifiers[markers.idMarker++] = token;
+          identifiers[markers.idMarker++] = token;// stored the rest as identifier
           tokens.push({ type: "identifier", value: token });
         }
       }
     }
   }
 
-  function display(name, arr, mark) {
+  function display(name, arr, mark) { // function for display and print only one of each token
     let output = name;
     const unique = [];
     for (let i = 0; i < mark; i++) {
@@ -394,7 +398,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return output;
   }
 
-  function isKeyword(key) {
+  function isKeyword(key) { //values of keywords
     const keywords = [
       "boolean",
       "break",
@@ -426,11 +430,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return keywords.includes(key);
   }
 
-  function isConstant(cons) {
+  function isConstant(cons) {// for integer and float
     return isInteger(cons) || isFloat(cons);
   }
 
-  function isInteger(str) {
+  function isInteger(str) {// value of integers
     if (str.length === 0) return false;
     for (let i = 0; i < str.length; i++) {
       const ch = str.charAt(i);
@@ -439,7 +443,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return true;
   }
 
-  function isFloat(str) {
+  function isFloat(str) {// value of floats
     let point = 0;
     if (str.length === 0) return false;
 
@@ -455,7 +459,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return point === 1;
   }
 
-  function isOperator(op) {
+  function isOperator(op) {// value of operators
     const operators = [
       "+",
       "-",
@@ -482,11 +486,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return operators.includes(op);
   }
 
-  function isOperatorChar(ch) {
+  function isOperatorChar(ch) {// value of single character operator
     return "+-*/=%<>!&|".includes(ch);
   }
 
-  function isPunctuation(code, index) {
+  function isPunctuation(code, index) {// value for punctuator
     let ch = code.charAt(index);
     const punctuators = ";:,?[]{}()";
     if (punctuators.includes(ch)) {
@@ -495,7 +499,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return false;
   }
 
-  function isWhitespace(ch) {
+  function isWhitespace(ch) {// value for white space
     return /\s/.test(ch);
   }
 
